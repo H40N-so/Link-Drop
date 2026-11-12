@@ -252,7 +252,7 @@ function createPublisher(app) {
         stream?.addTrack(track);
         await app.session?.setAudioTrack(track);
       } catch {
-        app.toast(t('errors.cameraDenied'), 'error');
+        app.toast(t('errors.micDenied'), 'error');
       }
     } else if (!on) {
       const track = stream?.getAudioTracks?.()[0];
@@ -304,7 +304,10 @@ function createPublisher(app) {
       const track = next.getVideoTracks()[0];
       if (track && app.session) await app.session.replaceVideoTrack(track);
     } catch (err) {
-      app.toast(t(err?.key || 'errors.cameraFailed'), 'error');
+      const key = err?.key || 'errors.cameraFailed';
+      // Permission and "no camera" problems get a dialog with the fix.
+      if (app.showCameraError) app.showCameraError(key);
+      else app.toast(t(key), 'error');
     }
   });
   $('[data-phone-stop]')?.addEventListener('click', () => stopStream());

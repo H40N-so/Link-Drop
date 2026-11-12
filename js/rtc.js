@@ -154,10 +154,20 @@ export class RTCSession extends Emitter {
     this.remoteStream = null;
 
     this._connected = false;
+    this.closed = false;
     this._channelsOpen = 0;
     this._pendingCandidates = [];
     this._negotiating = false;
     this._renegotiating = false;
+    // True while we have issued a local offer and await the answer. ICE
+    // restarts re-offer, so this cannot be inferred from currentRemoteDescription.
+    this._awaitingAnswer = false;
+
+    // Connection watchdog + ICE recovery state.
+    this._connectTimer = null;
+    this._disconnectedTimer = null;
+    this._iceRestarts = 0;
+    this._timeoutFired = false;
 
     // Rolling window used to compute the inbound video bitrate without
     // allocating on every sample.
@@ -227,13 +237,16 @@ export class RTCSession extends Emitter {
       this.emit('state', { state });
       if (state === 'connected') {
         this._connected = true;
+        this._clearConnectTimer();
         this._flushCandidates();
-      } else if (state === 'failed' || state === 'closed' || state === 'disconnected') {
+      } else if (state === 'closed') {
         this._connected = false;
-        if (state !== 'disconnected') {
-          // 'disconnected' is often transient; 'failed'/'closed' are final.
-          this.emit('lost', { state });
-        }
+        this._clearWatchdogs();
+        this.emit('lost', { state });
+      } else if (state === 'failed' || state === 'disconnected') {
+        this._connected = false;
+        // Recovery is driven by the ICE connection state handler below; its
+        // watchdog decides when a restart has failed for good.
       }
     };
 
@@ -244,7 +257,19 @@ export class RTCSession extends Emitter {
     };
 
     pc.oniceconnectionstatechange = () => {
-      this.emit('ice-state', { state: pc.iceConnectionState });
+      const state = pc.iceConnectionState;
+      this.emit('ice-state', { state });
+      if (state === 'failed') {
+        this._clearDisconnectedTimer();
+        this._attemptIceRestart('failed');
+      } else if (state === 'disconnected') {
+        // 'disconnected' is often transient (a Wi-Fi blip), so we wait a
+        // moment before re-gathering candidates.
+        this._armDisconnectedTimer('disconnected');
+      } else if (state === 'connected' || state === 'completed') {
+        this._clearDisconnectedTimer();
+        this._iceRestarts = 0;
+      }
     };
   }
 
@@ -315,14 +340,17 @@ export class RTCSession extends Emitter {
   async createOffer() {
     if (this.role !== 'guest') throw new Error('only the guest creates offers');
     this._negotiating = true;
+    this._armConnectTimer();
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
+    this._awaitingAnswer = true;
     this._sendSignal({ type: 'offer', sdp: this.pc.localDescription.sdp });
     this._negotiating = false;
   }
 
   /** Host only: answer an incoming offer. */
   async handleOffer(sdp) {
+    this._armConnectTimer();
     await this.pc.setRemoteDescription({ type: 'offer', sdp });
     // Candidates trickle in and may have arrived before the offer was applied;
     // now that there is a remote description they can finally be added.
@@ -332,12 +360,12 @@ export class RTCSession extends Emitter {
     this._sendSignal({ type: 'answer', sdp: this.pc.localDescription.sdp });
   }
 
-  /** Guest only: handle the answer. */
+  /** Guest only: handle the answer (initial or after an ICE restart). */
   async handleAnswer(sdp) {
-    if (!this.pc.currentRemoteDescription) {
-      await this.pc.setRemoteDescription({ type: 'answer', sdp });
-      this._flushCandidates();
-    }
+    if (!this._awaitingAnswer) return;
+    this._awaitingAnswer = false;
+    await this.pc.setRemoteDescription({ type: 'answer', sdp });
+    this._flushCandidates();
   }
 
   async _onSignal(message) {
@@ -397,6 +425,86 @@ export class RTCSession extends Emitter {
   _onControlMessage(message) {
     if (message?.t === 'rtc:signal') {
       this._onSignal(message.message);
+    } else if (message?.t === 'rtc:ice-restart' && this.role === 'guest') {
+      // The host noticed the link is unhealthy and asks us (the offerer) to
+      // re-gather candidates. One offerer keeps negotiation free of glare.
+      this._attemptIceRestart('requested');
+    }
+  }
+
+  /* ---------------------------------------------------------------- *
+   * Connection watchdog + ICE recovery
+   * ---------------------------------------------------------------- */
+
+  _armConnectTimer() {
+    if (this._connectTimer || this._connected) return;
+    this._connectTimer = setTimeout(() => {
+      this._connectTimer = null;
+      if (this._connected || this.closed) return;
+      this._timeoutFired = true;
+      // The specific error the UI turns into the "ICE failed / TURN" notice.
+      this.emit('timeout', { code: 'errors.iceFailed' });
+      this.emit('error', { scope: 'timeout', code: 'errors.iceFailed' });
+    }, SESSION_CONFIG.connectTimeoutMs);
+  }
+
+  _clearConnectTimer() {
+    if (this._connectTimer) {
+      clearTimeout(this._connectTimer);
+      this._connectTimer = null;
+    }
+  }
+
+  _armDisconnectedTimer(reason) {
+    if (this._disconnectedTimer) return;
+    this._disconnectedTimer = setTimeout(() => {
+      this._disconnectedTimer = null;
+      if (this._connected || this.closed) return;
+      this._attemptIceRestart(reason);
+    }, SESSION_CONFIG.disconnectedGraceMs);
+  }
+
+  _clearDisconnectedTimer() {
+    if (this._disconnectedTimer) {
+      clearTimeout(this._disconnectedTimer);
+      this._disconnectedTimer = null;
+    }
+  }
+
+  _clearWatchdogs() {
+    this._clearConnectTimer();
+    this._clearDisconnectedTimer();
+  }
+
+  /**
+   * Re-gather ICE candidates without tearing the session down. The guest is
+   * the only offerer, so a restart always originates here (or is requested by
+   * the host over the control channel). Gives up after
+   * SESSION_CONFIG.iceRestartMaxAttempts and reports the link as lost.
+   */
+  async _attemptIceRestart(reason) {
+    if (this.closed || !this.pc || this.pc.connectionState === 'closed') return;
+    if (this._iceRestarts >= SESSION_CONFIG.iceRestartMaxAttempts) {
+      this._clearWatchdogs();
+      this.emit('lost', { state: reason, reason: 'ice-restart-exhausted' });
+      return;
+    }
+    this._iceRestarts++;
+    this.emit('ice-restart', { attempt: this._iceRestarts, reason });
+
+    if (this.role === 'guest') {
+      try {
+        const offer = await this.pc.createOffer({ iceRestart: true });
+        await this.pc.setLocalDescription(offer);
+        this._awaitingAnswer = true;
+        this._sendSignal({ type: 'offer', sdp: this.pc.localDescription.sdp });
+      } catch (err) {
+        this.emit('error', { scope: 'ice-restart', error: err });
+      }
+    } else {
+      // Ask the guest to restart; if the channel is gone the guest will have
+      // noticed the failure itself and restarted anyway.
+      this._sendControlRaw({ t: 'rtc:ice-restart' });
     }
   }
 
@@ -618,6 +726,7 @@ export class RTCSession extends Emitter {
    * ---------------------------------------------------------------- */
 
   close(reason = 'user') {
+    this._clearWatchdogs();
     try {
       this.control?.close();
       this.files?.close();
@@ -635,6 +744,7 @@ export class RTCSession extends Emitter {
       /* ignore */
     }
     this._connected = false;
+    this.closed = true;
     this.emit('close', { reason });
   }
 }

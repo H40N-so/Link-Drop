@@ -13,153 +13,266 @@
     <link rel="stylesheet" href="css/app.css" />
   </head>
   <body data-role="phone">
+    <!-- Soft ambient background (decorative). -->
+    <div class="ambient" aria-hidden="true">
+      <span class="orb orb--1"></span>
+      <span class="orb orb--2"></span>
+      <span class="orb orb--3"></span>
+      <span class="grain"></span>
+    </div>
+
     <div class="phone-shell">
       <header class="phone-header">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.07 0l1.42-1.42a5 5 0 0 0-7.07-7.07L10 5.93" />
-            <path d="M14 11a5 5 0 0 0-7.07 0l-1.42 1.42a5 5 0 0 0 7.07 7.07L14 18.07" />
-          </svg>
+        <span class="phone-brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg class="icon"><use href="#i-link"></use></svg>
+          </span>
+          <span class="brand-name">LinkDrop</span>
         </span>
-        <span class="brand-name">LinkDrop</span>
         <span class="topbar-spacer"></span>
         <span id="device-name" class="device-name" hidden></span>
         <span id="status-pill" class="status-pill" data-state="disconnected">
+          <span class="status-dot" aria-hidden="true"></span>
           <span data-status-text data-i18n="status.disconnected"></span>
         </span>
-        <button type="button" id="disconnect-btn" class="btn btn-ghost btn-small" hidden data-i18n="phone.disconnect"></button>
+        <button type="button" id="disconnect-btn" class="btn btn--ghost btn--small" hidden data-i18n="phone.disconnect"></button>
       </header>
 
       <main class="phone-content">
         <div id="notice" class="notice" role="status" hidden>
           <span class="notice-text" data-notice-text></span>
-          <button type="button" class="btn btn-ghost btn-small" data-notice-close data-i18n="common.close"></button>
+          <button type="button" class="btn btn--ghost btn--small" data-notice-close data-i18n="common.close"></button>
         </div>
 
-        <!-- Connect -------------------------------------------------- -->
-        <section class="screen" data-screen="connect" aria-labelledby="phone-connect-title">
-          <div class="page-head">
-            <h1 class="page-title" id="phone-connect-title" data-i18n="phone.connectTitle"></h1>
-            <p class="page-subtitle" data-i18n="phone.connectSubtitle"></p>
-          </div>
-
-          <div class="phone-card">
-            <label class="muted small" for="code-input" data-i18n="phone.codeLabel"></label>
-            <input
-              id="code-input"
-              class="code-input"
-              type="text"
-              inputmode="numeric"
-              autocomplete="off"
-              autocorrect="off"
-              spellcheck="false"
-              maxlength="9"
-              placeholder="0000 0000"
-              aria-label="Pairing code"
-              data-i18n-attr="aria-label:phone.codeLabel"
-            />
-            <div class="phone-actions" style="margin-top: 14px">
-              <button type="button" class="btn btn-primary" id="connect-btn" data-i18n="phone.connect"></button>
+        <div data-screens>
+          <!-- Landing ------------------------------------------------ -->
+          <section class="screen screen--entry" data-screen="landing" aria-labelledby="phone-landing-title">
+            <div class="entry-head">
+              <h1 class="page-title" id="phone-landing-title" data-i18n="phone.landingTitle"></h1>
+              <p class="page-subtitle" data-i18n="phone.landingSubtitle"></p>
             </div>
-            <div id="phone-connect-status" class="inline-status" hidden></div>
-          </div>
-        </section>
 
-        <!-- Camera --------------------------------------------------- -->
-        <section class="screen" data-screen="camera" aria-labelledby="phone-camera-title">
-          <div class="page-head">
-            <h1 class="page-title" id="phone-camera-title" data-i18n="phone.camTitle"></h1>
-          </div>
+            <div class="entry-card card--glass">
+              <span class="label" data-i18n="phone.enterCode"></span>
+              <div class="code-cells" data-code-cells role="group" aria-label="Pairing code" data-i18n-attr="aria-label:phone.enterCode">
+                <input class="code-cell" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="1" />
+                <input class="code-cell" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="2" />
+                <input class="code-cell" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="3" />
+                <input class="code-cell" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="4" />
+                <input class="code-cell" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="5" />
+                <input class="code-cell" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="6" />
+                <input class="code-cell" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="7" />
+                <input class="code-cell" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="8" />
+              </div>
+              <p class="muted small" data-i18n="phone.codeHint"></p>
 
-          <video class="phone-preview" data-phone-preview autoplay playsinline muted></video>
+              <button type="button" class="btn btn--primary btn--block" data-action="phone-connect" data-i18n="phone.connect"></button>
 
-          <div class="phone-card" style="margin-top: 12px">
-            <div class="phone-status">
-              <span class="phone-status-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 8h2.4l1.5-2h8.2l1.5 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
-                  <circle cx="12" cy="13" r="3.2" />
+              <div class="entry-sep" aria-hidden="true"><span></span></div>
+
+              <button type="button" class="btn btn--block" data-action="scan">
+                <svg class="icon icon--sm"><use href="#i-scan"></use></svg>
+                <span data-i18n="phone.scanQr"></span>
+              </button>
+
+              <div id="phone-landing-status" class="inline-status" hidden>
+                <p class="inline-status-text" data-error-text></p>
+                <p class="inline-status-hint muted small" data-error-hint hidden></p>
+                <button
+                  type="button"
+                  class="btn btn--small"
+                  data-action="retry-signaling"
+                  data-i18n="connect.retry"
+                  hidden
+                ></button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Connecting --------------------------------------------- -->
+          <section class="screen screen--entry" data-screen="connecting" aria-labelledby="phone-connecting-title">
+            <div class="connecting">
+              <span class="spinner" aria-hidden="true">
+                <svg viewBox="0 0 50 50" width="44" height="44">
+                  <circle class="spinner-track" cx="25" cy="25" r="20" fill="none" stroke-width="4" />
+                  <circle class="spinner-head" cx="25" cy="25" r="20" fill="none" stroke-width="4" stroke-linecap="round" />
                 </svg>
               </span>
-              <div>
-                <div id="phone-status" data-phone-status data-i18n="phone.notStreaming"></div>
-                <small class="muted" data-phone-detail></small>
+              <h1 class="page-title" id="phone-connecting-title" data-i18n="phone.connectingTo"></h1>
+              <p class="muted" id="phone-connecting-detail"></p>
+              <button type="button" class="btn btn--ghost" data-action="cancel-connect" data-i18n="common.cancel"></button>
+            </div>
+          </section>
+
+          <!-- Camera (the connected screen) -------------------------- -->
+          <section class="screen" data-screen="camera" aria-labelledby="phone-camera-title">
+            <div class="page-head">
+              <h1 class="page-title" id="phone-camera-title" data-i18n="phone.camTitle"></h1>
+            </div>
+
+            <div class="phone-connected card--glass" id="phone-connected">
+              <span class="connected-check connected-check--sm" aria-hidden="true">
+                <svg class="icon icon--lg"><use href="#i-check"></use></svg>
+              </span>
+              <div class="phone-connected__text">
+                <span class="phone-connected__name" data-phone-peer>—</span>
+                <small class="muted" id="phone-status" data-phone-status data-i18n="phone.notStreaming"></small>
               </div>
             </div>
 
-            <div class="phone-actions">
-              <button type="button" class="btn btn-primary" data-phone-start data-i18n="phone.start"></button>
-              <button type="button" class="btn btn-danger" data-phone-stop data-i18n="phone.stop" hidden></button>
+            <video class="phone-preview" data-phone-preview autoplay playsinline muted></video>
+
+            <div class="card card--pad">
+              <div class="phone-status">
+                <span class="phone-status-icon" aria-hidden="true">
+                  <svg class="icon"><use href="#i-camera"></use></svg>
+                </span>
+                <div>
+                  <div class="phone-status-title" data-i18n="phone.camera"></div>
+                  <small class="muted" data-phone-detail></small>
+                </div>
+              </div>
+
+              <div class="phone-actions">
+                <button type="button" class="btn btn--primary" data-phone-start data-i18n="phone.start"></button>
+                <button type="button" class="btn btn--danger" data-phone-stop data-i18n="phone.stop" hidden></button>
+              </div>
+
+              <p class="muted small" data-i18n="phone.keepAwake"></p>
+            </div>
+          </section>
+
+          <!-- Files -------------------------------------------------- -->
+          <section class="screen" data-screen="files" aria-labelledby="phone-files-title">
+            <div class="page-head">
+              <h1 class="page-title" id="phone-files-title" data-i18n="files.title"></h1>
+              <p class="page-subtitle" data-i18n="files.subtitle"></p>
             </div>
 
-            <p class="muted small" style="margin-top: 12px" data-i18n="phone.keepAwake"></p>
-          </div>
-        </section>
+            <div class="card card--pad">
+              <button type="button" class="btn btn--primary btn--block" data-files-send>
+                <svg class="icon icon--sm"><use href="#i-upload"></use></svg>
+                <span data-i18n="files.send"></span>
+              </button>
+              <input type="file" data-files-input multiple hidden />
+              <p class="muted small" data-i18n="files.note"></p>
+            </div>
 
-        <!-- Files ---------------------------------------------------- -->
-        <section class="screen" data-screen="files" aria-labelledby="phone-files-title">
-          <div class="page-head">
-            <h1 class="page-title" id="phone-files-title" data-i18n="files.title"></h1>
-            <p class="page-subtitle" data-i18n="files.subtitle"></p>
-          </div>
+            <div class="files-head">
+              <h2 class="card-title" data-i18n="files.session"></h2>
+              <button type="button" class="btn btn--ghost btn--small" data-files-clear data-i18n="files.clear"></button>
+            </div>
 
-          <div class="phone-card">
-            <button type="button" class="btn btn-primary" data-files-send data-i18n="files.send"></button>
-            <input type="file" data-files-input multiple hidden />
-            <p class="muted small" style="margin-top: 10px" data-i18n="files.note"></p>
-          </div>
+            <div class="empty-state" data-files-empty>
+              <svg class="icon icon--lg"><use href="#i-folder"></use></svg>
+              <p data-i18n="files.emptyPhone"></p>
+            </div>
+            <ul class="transfer-list" data-transfer-list></ul>
+          </section>
 
-          <div class="files-head">
-            <h2 class="card-title" style="padding: 0" data-i18n="files.session"></h2>
-            <button type="button" class="btn btn-ghost btn-small" data-files-clear data-i18n="files.clear"></button>
-          </div>
+          <!-- Settings ----------------------------------------------- -->
+          <section class="screen" data-screen="settings" aria-labelledby="phone-settings-title">
+            <div class="page-head">
+              <h1 class="page-title" id="phone-settings-title" data-i18n="settings.title"></h1>
+              <p class="page-subtitle" data-i18n="settings.subtitle"></p>
+            </div>
+            <div data-settings-host></div>
+          </section>
 
-          <div class="empty-state" data-files-empty>
-            <p data-i18n="files.emptyPhone"></p>
-          </div>
-          <ul class="transfer-list" data-transfer-list></ul>
-        </section>
+          <!-- Help --------------------------------------------------- -->
+          <section class="screen" data-screen="help" aria-labelledby="phone-help-title">
+            <div class="page-head">
+              <h1 class="page-title" id="phone-help-title" data-i18n="help.title"></h1>
+              <p class="page-subtitle" data-i18n="help.subtitle"></p>
+            </div>
 
-        <!-- Settings ------------------------------------------------- -->
-        <section class="screen" data-screen="settings" aria-labelledby="phone-settings-title">
-          <div class="page-head">
-            <h1 class="page-title" id="phone-settings-title" data-i18n="settings.title"></h1>
-            <p class="page-subtitle" data-i18n="settings.subtitle"></p>
-          </div>
-          <div data-settings-host></div>
-        </section>
+            <section class="card">
+              <h2 class="card-title" data-i18n="help.check.title"></h2>
+              <div class="card-body">
+                <p class="muted small" data-i18n="help.check.body"></p>
+                <div data-connection-check></div>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card-body help-sections">
+                <div class="help-section">
+                  <h2 data-i18n="help.pairing.title"></h2>
+                  <p data-i18n="help.pairing.body"></p>
+                </div>
+                <div class="help-section">
+                  <h2 data-i18n="help.verify.title"></h2>
+                  <p data-i18n="help.verify.body"></p>
+                </div>
+                <div class="help-section">
+                  <h2 data-i18n="help.troubleshooting.title"></h2>
+                  <ul class="steps">
+                    <li data-i18n="help.troubleshooting.camera"></li>
+                    <li data-i18n="help.troubleshooting.turn"></li>
+                    <li data-i18n="help.troubleshooting.files"></li>
+                  </ul>
+                </div>
+                <div class="help-section">
+                  <h2 data-i18n="help.privacy.title"></h2>
+                  <p data-i18n="help.privacy.body"></p>
+                </div>
+              </div>
+            </section>
+          </section>
+        </div>
       </main>
 
       <nav class="tabbar" aria-label="Main navigation">
+        <span class="tab-indicator" aria-hidden="true"></span>
         <button type="button" class="nav-item" data-nav="camera">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 8h2.4l1.5-2h8.2l1.5 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
-            <circle cx="12" cy="13" r="3.2" />
-          </svg>
+          <svg class="icon icon--lg"><use href="#i-camera"></use></svg>
           <span data-i18n="nav.camera"></span>
         </button>
         <button type="button" class="nav-item" data-nav="files">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 7a1 1 0 0 1 1-1h4.3l1.8 2H19a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" />
-          </svg>
+          <svg class="icon icon--lg"><use href="#i-folder"></use></svg>
           <span data-i18n="nav.files"></span>
         </button>
         <button type="button" class="nav-item" data-nav="settings">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 2.6v2.6M12 18.8v2.6M2.6 12h2.6M18.8 12h2.6M5.4 5.4l1.9 1.9M16.7 16.7l1.9 1.9M18.6 5.4l-1.9 1.9M7.3 16.7l-1.9 1.9" />
-          </svg>
+          <svg class="icon icon--lg"><use href="#i-settings"></use></svg>
           <span data-i18n="nav.settings"></span>
+        </button>
+        <button type="button" class="nav-item" data-nav="help">
+          <svg class="icon icon--lg"><use href="#i-help"></use></svg>
+          <span data-i18n="nav.help"></span>
         </button>
       </nav>
     </div>
 
-    <div id="verify-modal" class="modal" hidden></div>
-    <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+    <!-- Full-page message shown when phone.html is opened on a computer. -->
+    <div id="role-message" class="role-message" hidden>
+      <div class="role-message__inner">
+        <span class="brand-mark brand-mark--lg" aria-hidden="true">
+          <svg class="icon icon--lg"><use href="#i-link"></use></svg>
+        </span>
+        <h1 class="page-title" data-i18n="role.phoneOnDesktop.title"></h1>
+        <p class="page-subtitle" data-i18n="role.phoneOnDesktop.body"></p>
+      </div>
+    </div>
+
+    <!-- In-page QR scanner (phone only). -->
+    <div id="scanner" class="scanner" hidden>
+      <div class="scanner-inner">
+        <div class="scanner-head">
+          <h2 data-i18n="phone.scanTitle"></h2>
+          <button type="button" class="btn btn--ghost btn--small" data-action="scan-close" data-i18n="phone.back"></button>
+        </div>
+        <div class="scanner-view">
+          <video id="scanner-video" playsinline muted></video>
+          <span class="scanner-frame" aria-hidden="true"></span>
+        </div>
+        <p id="scanner-msg" class="scanner-msg muted"></p>
+      </div>
+    </div>
+
+    <div id="toasts" class="ld-toasts" role="region" aria-label="Notifications" aria-live="polite" aria-atomic="false"></div>
 
     <script src="vendor/peerjs.min.js"></script>
-    <script src="vendor/mqtt.min.js"></script>
-    <script src="vendor/qrcode.js"></script>
+    <script src="vendor/jsQR.js"></script>
     <script type="module" src="js/ui.js"></script>
   </body>
 </html>

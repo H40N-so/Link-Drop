@@ -23,12 +23,18 @@
  * documentation. You can list several TURN servers; they are tried in order.
  */
 export const ICE_SERVERS = [
+  // Several well-known public STUN servers. Having more than one means a
+  // single unreachable host does not break discovery.
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
   { urls: 'stun:stun.cloudflare.com:3478' },
+  { urls: 'stun:stun.nextcloud.com:443' },
+  { urls: 'stun:global.stun.twilio.com:3478' },
 
   // --- TURN (optional) -----------------------------------------------------
-  // Add your own TURN server here for connections across different networks.
+  // Add your own TURN server here for connections across different networks
+  // (phone on mobile data, strict firewalls, symmetric NAT).
   // { urls: 'turn:turn.example.com:3478', username: '', credential: '' },
   // { urls: 'turns:turn.example.com:5349', username: '', credential: '' },
 ];
@@ -72,16 +78,28 @@ export const PEERJS_CONFIG = {
 };
 
 /* --------------------------------------------------------------------------
- * 4. MQTT brokers (Adapter B, the automatic backup)
+ * 4. Backup signaling (experimental, off by default)
  * --------------------------------------------------------------------------
- * Used only when PeerJS is unreachable or times out. These are well-known
- * free public brokers — public brokers may change, rate-limit or disappear at
- * any time, and they are shared with the whole internet, so treat them as
- * best-effort only.
+ * LinkDrop pairs through PeerJS Cloud. It can additionally fall back to public
+ * MQTT brokers when PeerJS is unreachable, but that path is EXPERIMENTAL and
+ * therefore disabled by default:
  *
- * They are tried in order with a short timeout. Signaling messages published
- * here are always encrypted (AES-GCM, key derived from the pairing code), and
- * the topic contains only a hash of the code, never the code itself.
+ *   - public brokers are shared with the whole internet and may be
+ *     rate-limited, unreliable or disappear at any time;
+ *   - the handshake adds moving parts at exactly the moment things are already
+ *     going wrong.
+ *
+ * Set ENABLE_BACKUP_SIGNALING to true to turn the fallback on. While it is
+ * false, no MQTT library or adapter code is loaded, the app uses PeerJS only,
+ * and the runtime UI never mentions a backup service.
+ */
+export const ENABLE_BACKUP_SIGNALING = false;
+
+/*
+ * The brokers below are used only when ENABLE_BACKUP_SIGNALING is true. They
+ * are tried in order with a short timeout. Signaling messages published here
+ * are always encrypted (AES-GCM, key derived from the pairing code), and the
+ * topic contains only a hash of the code, never the code itself.
  */
 export const MQTT_BROKERS = [
   // Public EMQX broker.
@@ -112,7 +130,30 @@ export const SESSION_CONFIG = {
   codeTtlMs: 10 * 60 * 1000,
   // Length of the pairing code.
   codeLength: 8,
+  // How long we wait for the peer-to-peer link to come up before reporting a
+  // connection timeout (the ICE failure message points at TURN).
+  connectTimeoutMs: 20000,
+  // Try an ICE restart this many times before giving up. An ICE restart
+  // re-gathers candidates without tearing the session down, which fixes the
+  // common "connection dropped after a network change" case.
+  iceRestartMaxAttempts: 2,
+  // Grace period after ICE goes to "disconnected" before we treat it as lost.
+  disconnectedGraceMs: 5000,
   // Reconnect backoff.
   reconnectBaseDelayMs: 1000,
   reconnectMaxDelayMs: 15000,
+};
+
+/* --------------------------------------------------------------------------
+ * 6. Connection check tool (Help page)
+ * --------------------------------------------------------------------------
+ * Timeouts used by the one-click "Connection check".
+ */
+export const CHECK_CONFIG = {
+  // Per-service timeout for the PeerJS server and each MQTT broker.
+  serviceTimeoutMs: 6000,
+  // How long to wait for STUN candidates while gathering.
+  stunTimeoutMs: 6000,
+  // Overall cap for a single run.
+  overallTimeoutMs: 30000,
 };

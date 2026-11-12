@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  LinkDrop icon sprite — Lucide line icons (https://lucide.dev, ISC licence).
+
+  Vendored locally so the app never calls a CDN. Symbols carry geometry only:
+  fill, stroke, stroke-width, linecap and linejoin are inherited from the
+  referencing `.icon` element (see css/app.css), which keeps one consistent
+  stroke width and size grid everywhere.
+
+  Usage:  <svg class="icon"><use href="#i-camera"></use></svg>
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" focusable="false" aria-hidden="true">
+  <!-- Navigation / brand -->
+  <symbol id="i-link" viewBox="0 0 24 24">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  </symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24">
+    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+    <circle cx="12" cy="13" r="3" />
+  </symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24">
+    <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+  </symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24">
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+    <circle cx="12" cy="12" r="3" />
+  </symbol>
+  <symbol id="i-help" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <path d="M12 17h.01" />
+  </symbol>
+
+  <!-- Actions -->
+  <symbol id="i-copy" viewBox="0 0 24 24">
+    <rect width="14" height="14" x="8" y="8" rx="2" />
+    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+  </symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24">
+    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+    <path d="M21 3v5h-5" />
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24">
+    <path d="M20 6 9 17l-5-5" />
+  </symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" />
+    <path d="m9 12 2 2 4-4" />
+  </symbol>
+  <symbol id="i-x" viewBox="0 0 24 24">
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </symbol>
+  <symbol id="i-x-circle" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" />
+    <path d="m15 9-6 6" />
+    <path d="m9 9 6 6" />
+  </symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24">
+    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+    <path d="M12 9v4" />
+    <path d="M12 17h.01" />
+  </symbol>
+  <symbol id="i-info" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 16v-4" />
+    <path d="M12 8h.01" />
+  </symbol>
+
+  <!-- Camera controls -->
+  <symbol id="i-mirror" viewBox="0 0 24 24">
+    <path d="M8 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h3" />
+    <path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3" />
+    <path d="M12 20v2" />
+    <path d="M12 14v2" />
+    <path d="M12 8v2" />
+    <path d="M12 2v2" />
+  </symbol>
+  <symbol id="i-fullscreen" viewBox="0 0 24 24">
+    <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+    <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+    <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+    <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+  </symbol>
+  <symbol id="i-pip" viewBox="0 0 24 24">
+    <path d="M21 9V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4" />
+    <rect width="10" height="7" x="12" y="13" rx="2" />
+  </symbol>
+  <symbol id="i-record" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8" />
+  </symbol>
+  <symbol id="i-snapshot" viewBox="0 0 24 24">
+    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+    <circle cx="12" cy="13" r="3" />
+  </symbol>
+
+  <!-- Files -->
+  <symbol id="i-upload" viewBox="0 0 24 24">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="M17 8l-5-5-5 5" />
+    <path d="M12 3v12" />
+  </symbol>
+  <symbol id="i-download" viewBox="0 0 24 24">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="M7 10l5 5 5-5" />
+    <path d="M12 15V3" />
+  </symbol>
+
+  <!-- Pairing -->
+  <symbol id="i-qr" viewBox="0 0 24 24">
+    <rect width="5" height="5" x="3" y="3" rx="1" />
+    <rect width="5" height="5" x="16" y="3" rx="1" />
+    <rect width="5" height="5" x="3" y="16" rx="1" />
+    <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
+    <path d="M21 21v.01" />
+    <path d="M12 7v3a2 2 0 0 1-2 2H7" />
+    <path d="M3 12h.01" />
+    <path d="M12 16v.01" />
+    <path d="M16 12h1" />
+    <path d="M21 12v.01" />
+    <path d="M12 21v-1" />
+  </symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24">
+    <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+    <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+    <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+    <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+    <path d="M7 12h10" />
+  </symbol>
+  <symbol id="i-shield-check" viewBox="0 0 24 24">
+    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+    <path d="m9 12 2 2 4-4" />
+  </symbol>
+
+  <!-- Devices / connection -->
+  <symbol id="i-smartphone" viewBox="0 0 24 24">
+    <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+    <path d="M12 18h.01" />
+  </symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24">
+    <path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16" />
+  </symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24">
+    <rect width="20" height="14" x="2" y="3" rx="2" />
+    <path d="M8 21h8" />
+    <path d="M12 17v4" />
+  </symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24">
+    <path d="M12 20h.01" />
+    <path d="M2 8.82a15 15 0 0 1 20 0" />
+    <path d="M5 12.86a10 10 0 0 1 14 0" />
+    <path d="M8.5 16.43a5 5 0 0 1 7 0" />
+  </symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+    <path d="M2 12h20" />
+  </symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24">
+    <path d="m12 14 4-4" />
+    <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+  </symbol>
+
+  <!-- Theme + misc -->
+  <symbol id="i-sun" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2" />
+    <path d="M12 20v2" />
+    <path d="m4.93 4.93 1.41 1.41" />
+    <path d="m17.66 17.66 1.41 1.41" />
+    <path d="M2 12h2" />
+    <path d="M20 12h2" />
+    <path d="m6.34 17.66-1.41 1.41" />
+    <path d="m19.07 4.93-1.41 1.41" />
+  </symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24">
+    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+  </symbol>
+  <symbol id="i-loader" viewBox="0 0 24 24">
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+  </symbol>
+  <symbol id="i-circle" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" />
+  </symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24">
+    <path d="M5 12h14" />
+    <path d="m12 5 7 7-7 7" />
+  </symbol>
+</svg>

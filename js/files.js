@@ -10,6 +10,7 @@
 // then exactly `size` bytes of chunks, then the next file.
 
 import { t } from './i18n.js';
+import { icon } from './icons.js';
 
 const META_KIND = 'meta';
 const DIR_DB = 'linkdrop';
@@ -436,9 +437,17 @@ export function initFiles(app) {
     if (!list) return;
     if (empty) empty.hidden = transfers.length > 0;
 
-    list.textContent = '';
-    for (const record of transfers) {
-      list.appendChild(renderRow(record));
+    // Reuse existing rows instead of clearing the list: detaching a row would
+    // restart its entrance animation and reset the smooth width transition on
+    // the progress bar (which updates several times a second).
+    const rows = transfers.map((record) => renderRow(record));
+    rows.forEach((node, index) => {
+      if (list.children[index] !== node) {
+        list.insertBefore(node, list.children[index] || null);
+      }
+    });
+    while (list.children.length > rows.length) {
+      list.lastElementChild.remove();
     }
   }
 
@@ -525,7 +534,7 @@ export function initFiles(app) {
   function actionButton(label, i18nKey, onClick) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'btn btn-ghost btn-small';
+    button.className = 'btn btn--ghost btn--small';
     button.textContent = label;
     button.dataset.i18n = i18nKey;
     button.addEventListener('click', onClick);
@@ -533,8 +542,7 @@ export function initFiles(app) {
   }
 
   function arrowIcon(direction) {
-    const up = direction === 'to-laptop';
-    return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="${up ? 'M6 11l6-6 6 6' : 'M6 13l6 6 6-6'}"/></svg>`;
+    return icon(direction === 'to-laptop' ? 'upload' : 'download', 'icon--sm');
   }
 
   /**

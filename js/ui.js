@@ -3,11 +3,14 @@
 // This is the only module that knows which signaling adapter is in use. The
 // camera and file modules just receive a connected RTCSession through the
 // shared `app` object, which is why swapping the adapter changes nothing else.
+//
+// Both pages share this file: index.html runs the laptop role and phone.html
+// runs the phone role. The two roles are kept apart on purpose — the laptop
+// only ever shows the code and the QR code, never a link to the phone page.
 
-import { SESSION_CONFIG } from '../config.js';
+import { SESSION_CONFIG, ENABLE_BACKUP_SIGNALING } from '../config.js';
 import { RTCSession, Emitter } from './rtc.js';
 import { createPeerJsSignaling, peerJsAvailable } from './signaling-peerjs.js';
-import { createMqttSignaling, mqttAvailable } from './signaling-mqtt.js';
 import {
   generatePairingCode,
   normalizeCode,
@@ -19,6 +22,12 @@ import { Settings, applyTheme, mountSettings } from './settings.js';
 import { t, setLanguage, translateDom, getLanguage } from './i18n.js';
 import { initCamera } from './camera.js';
 import { initFiles } from './files.js';
+import { openModal, alertDialog, toast as showToast, banner as showBanner } from './feedback.js';
+import { ScreenRouter } from './router.js';
+import { isDesktopClass, isPhoneClass } from './device.js';
+import { QrScanner, extractCode } from './scanner.js';
+import { mountConnectionCheck } from './checks.js';
+import { mountIconSprite } from './icons.js';
 
 /* ------------------------------------------------------------------ *
  * Shared app object
@@ -32,6 +41,10 @@ app.peerName = '';
 app.t = t;
 app.language = getLanguage;
 
+/** Screen order per role. Used for direction-aware transitions. */
+const LAPTOP_SCREENS = ['connect', 'camera', 'files', 'settings', 'help'];
+const PHONE_SCREENS = ['landing', 'connecting', 'camera', 'files', 'settings', 'help'];
+
 /** Runtime state for the pairing flow. */
 const runtime = {
   code: null,
@@ -43,11 +56,18 @@ const runtime = {
   suppressReconnect: false,
   epoch: 0,
   verifyNumber: '',
+  joining: false,
   countdownTimer: null,
   statsTimer: null,
   reconnectTimer: null,
+  bannerController: null,
+  verifyModal: null,
   resolveHello: null,
   helloPromise: null,
+  router: null,
+  cells: null,
+  scanner: null,
+  connectPhase: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -56,18 +76,11 @@ const $ = (selector) => document.querySelector(selector);
  * Small UI helpers
  * ------------------------------------------------------------------ */
 
+/** Map the app's short kinds onto the toast system's types. */
 function toast(message, kind = 'info') {
-  const host = $('#toasts');
-  if (!host || !message) return;
-  const node = document.createElement('div');
-  node.className = 'toast toast-' + kind;
-  node.setAttribute('role', 'status');
-  node.textContent = message;
-  host.appendChild(node);
-  setTimeout(() => {
-    node.classList.add('is-leaving');
-    setTimeout(() => node.remove(), 250);
-  }, 4000);
+  if (!message) return;
+  const type = kind === 'warn' ? 'warning' : kind === 'error' ? 'error' : kind;
+  showToast(message, { type, closeLabel: t('common.dismiss') });
 }
 
 function showNotice(text) {
@@ -101,9 +114,13 @@ function setStatus(status, detail) {
     }
   }
   const disconnect = $('#disconnect-btn');
-  if (disconnect) disconnect.hidden = !(status === 'connected' || status === 'waiting' || status === 'connecting');
+  if (disconnect) {
+    disconnect.hidden = !(status === 'connected' || status === 'waiting' || status === 'connecting');
+  }
   const inline = $('[data-connect-detail]');
   if (inline) inline.textContent = detail || '';
+  // The laptop's Connect card flips to its "connected" state once live.
+  setLaptopConnectPhase(status === 'connected' ? 'connected' : 'pairing');
   if (status === 'disconnected') {
     app.peerName = '';
     updateDeviceName();
@@ -112,27 +129,92 @@ function setStatus(status, detail) {
 
 function updateDeviceName() {
   const node = $('#device-name');
-  if (!node) return;
-  node.textContent = app.peerName || '';
-  node.hidden = !app.peerName;
+  if (node) {
+    node.textContent = app.peerName || '';
+    node.hidden = !app.peerName;
+  }
+  // The connected phone screen shows the laptop name in its status card.
+  document.querySelectorAll('[data-phone-peer]').forEach((el) => {
+    el.textContent = app.peerName || t('conn.device');
+  });
 }
 
-function showScreen(name) {
-  document.querySelectorAll('[data-screen]').forEach((section) => {
-    section.classList.toggle('is-active', section.dataset.screen === name);
-  });
+/* ------------------------------------------------------------------ *
+ * Screen routing + navigation
+ * ------------------------------------------------------------------ */
+
+function showScreen(name, options) {
+  runtime.router?.show(name, options);
+}
+
+function onScreenChange(id) {
+  document.body.dataset.screen = id;
   document.querySelectorAll('[data-nav]').forEach((button) => {
-    const active = button.dataset.nav === name;
+    const active = button.dataset.nav === id;
     button.classList.toggle('is-active', active);
     if (active) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   });
-  // Keep the hash so a reload or share keeps the user where they were.
+  moveNavIndicators();
   try {
-    history.replaceState(null, '', '#' + name);
+    history.replaceState(null, '', '#' + id);
   } catch {
     /* ignore */
   }
+}
+
+/** Slide the sidebar / tab bar indicator under the active item. */
+function moveNavIndicators() {
+  const nav = $('.nav');
+  const navActive = nav?.querySelector('.nav-item.is-active');
+  const navIndicator = nav?.querySelector('.nav-indicator');
+  if (nav && navIndicator) {
+    if (navActive) {
+      const nr = nav.getBoundingClientRect();
+      const ar = navActive.getBoundingClientRect();
+      navIndicator.style.width = ar.width + 'px';
+      navIndicator.style.height = ar.height + 'px';
+      navIndicator.style.transform = `translate3d(${Math.round(ar.left - nr.left)}px, ${Math.round(ar.top - nr.top)}px, 0)`;
+      navIndicator.style.opacity = '1';
+    } else {
+      navIndicator.style.opacity = '0';
+    }
+  }
+
+  const tabbar = $('.tabbar');
+  const tabActive = tabbar?.querySelector('.nav-item.is-active');
+  const tabIndicator = tabbar?.querySelector('.tab-indicator');
+  if (tabbar && tabIndicator) {
+    if (tabActive) {
+      const tr = tabbar.getBoundingClientRect();
+      const ar = tabActive.getBoundingClientRect();
+      tabIndicator.style.width = ar.width + 'px';
+      tabIndicator.style.transform = `translate3d(${Math.round(ar.left - tr.left)}px, 0, 0)`;
+      tabIndicator.style.opacity = '1';
+    } else {
+      tabIndicator.style.opacity = '0';
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Phone-only screens
+ * ------------------------------------------------------------------ */
+
+function setPhoneDetail(text) {
+  const node = $('#phone-connecting-detail');
+  if (node) node.textContent = text;
+}
+
+function showLanding() {
+  if (app.role !== 'phone') return;
+  showScreen('landing');
+}
+
+function showConnecting() {
+  if (app.role !== 'phone') return;
+  setPhoneDetail(t('phone.connectingHint'));
+  showScreen('connecting');
 }
 
 /* ------------------------------------------------------------------ *
@@ -141,7 +223,8 @@ function showScreen(name) {
 
 function phonePageUrl(code) {
   // Build the phone URL from the current location so it works at a domain
-  // root, under a sub-path and on localhost.
+  // root, under a sub-path and on localhost. Only the QR code uses this:
+  // the laptop page never links to the phone page.
   const base = location.href.split(/[?#]/)[0].replace(/[^/]*$/, '');
   const url = new URL(base + 'phone.html', location.href);
   url.search = '';
@@ -158,29 +241,24 @@ function renderCode() {
   display.setAttribute('aria-label', t('connect.codeLabel') + ': ' + formatCode(code));
 
   const qrHost = $('#qr-container');
-  if (qrHost) {
-    qrHost.textContent = '';
-    try {
-      if (typeof window.qrcode === 'function') {
-        const qr = window.qrcode(0, 'M');
-        qr.addData(phonePageUrl(code));
-        qr.make();
-        qrHost.innerHTML = qr.createSvgTag({
-          cellSize: 5,
-          margin: 8,
-          alt: t('connect.qrAlt'),
-        });
-      } else {
-        // QR generator missing: still usable, the code can be typed by hand.
-        qrHost.innerHTML = `<p class="muted small">${t('common.unsupported')}</p>`;
-      }
-    } catch {
+  if (!qrHost) return;
+  qrHost.textContent = '';
+  try {
+    if (typeof window.qrcode === 'function') {
+      const qr = window.qrcode(0, 'M');
+      qr.addData(phonePageUrl(code));
+      qr.make();
+      qrHost.innerHTML = qr.createSvgTag({
+        cellSize: 5,
+        margin: 8,
+        alt: t('connect.qrAlt'),
+      });
+    } else {
       qrHost.innerHTML = `<p class="muted small">${t('common.unsupported')}</p>`;
     }
+  } catch {
+    qrHost.innerHTML = `<p class="muted small">${t('common.unsupported')}</p>`;
   }
-
-  const openPhone = $('#open-phone-link');
-  if (openPhone) openPhone.href = phonePageUrl(code);
 }
 
 function formatClock(ms) {
@@ -195,6 +273,7 @@ function tickCountdown() {
     clearInterval(runtime.countdownTimer);
     runtime.countdownTimer = null;
     if (node) node.textContent = t('connect.expired');
+    setCodeProgress(0);
     if (runtime.status === 'waiting') {
       void teardownSession();
       setStatus('disconnected');
@@ -203,6 +282,66 @@ function tickCountdown() {
     return;
   }
   if (node) node.textContent = t('connect.expiresIn', { time: formatClock(remaining) });
+  setCodeProgress(remaining / SESSION_CONFIG.codeTtlMs);
+}
+
+/** Drive the slim linear countdown under the pairing code. */
+function setCodeProgress(ratio) {
+  const clamped = Math.max(0, Math.min(1, ratio));
+  const fill = $('#code-progress');
+  if (fill) fill.style.transform = `scaleX(${clamped})`;
+  const bar = fill?.parentElement;
+  if (bar) bar.classList.toggle('is-low', clamped < 0.25);
+}
+
+/** Highlight the active step of the 3-step pairing stepper (laptop). */
+function setConnectStep(active) {
+  const stepper = $('[data-stepper]');
+  if (!stepper) return;
+  stepper.querySelectorAll('.step').forEach((step) => {
+    const n = Number(step.dataset.step);
+    step.classList.toggle('is-active', n === active);
+    step.classList.toggle('is-done', n < active);
+  });
+}
+
+/** Fill the connected card with the peer's name and the friendly subtitle. */
+function fillConnectedCard() {
+  const connected = $('#connect-connected');
+  if (!connected) return;
+  const name = app.peerName || t('conn.device');
+  connected.querySelectorAll('[data-connected-name]').forEach((n) => {
+    n.textContent = name;
+  });
+  const sub = connected.querySelector('[data-connected-device]');
+  if (sub) sub.textContent = t('connect.connectedSub', { name });
+}
+
+/** Swap the laptop Connect card between the pairing and connected states. */
+function setLaptopConnectPhase(phase) {
+  if (app.role !== 'laptop') return;
+  const pairing = $('#connect-pairing');
+  const connected = $('#connect-connected');
+  if (!pairing || !connected) return;
+
+  if (runtime.connectPhase == null) {
+    runtime.connectPhase = connected.hidden ? 'pairing' : 'connected';
+  }
+  if (runtime.connectPhase === phase) return;
+
+  if (phase === 'connected') fillConnectedCard();
+  runtime.connectPhase = phase;
+
+  const swap = () => {
+    pairing.hidden = phase === 'connected';
+    connected.hidden = phase !== 'connected';
+  };
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  if (typeof document.startViewTransition === 'function' && !reduced) {
+    document.startViewTransition(swap);
+  } else {
+    swap();
+  }
 }
 
 function newCode({ listen = true } = {}) {
@@ -220,100 +359,226 @@ function newCode({ listen = true } = {}) {
  * Errors on the connect screen
  * ------------------------------------------------------------------ */
 
-function showInlineError(key) {
-  const node = app.role === 'phone' ? $('#phone-connect-status') : $('#connect-status');
+function errorNode() {
+  return app.role === 'phone' ? $('#phone-landing-status') : $('#connect-status');
+}
+
+/**
+ * Show a message on the connect/landing screen.
+ *
+ * `options.retry` additionally reveals the short hint and the retry button
+ * that live inside the same block, which is what we want when the pairing
+ * service itself is unreachable (as opposed to a wrong code).
+ */
+function showInlineError(key, { retry = false } = {}) {
+  const node = errorNode();
   if (!node) return;
-  node.textContent = t(key);
+  const text = node.querySelector('[data-error-text]') || node;
+  text.textContent = t(key);
   node.className = 'inline-status is-error';
   node.hidden = false;
+
+  const hint = node.querySelector('[data-error-hint]');
+  const retryBtn = node.querySelector('[data-action="retry-signaling"]');
+  if (hint) {
+    hint.hidden = !retry;
+    hint.textContent = retry ? t('errors.signalingHint') : '';
+  }
+  if (retryBtn) retryBtn.hidden = !retry;
 }
 
 function hideInlineError() {
-  const node = app.role === 'phone' ? $('#phone-connect-status') : $('#connect-status');
+  const node = errorNode();
   if (node) node.hidden = true;
 }
 
+/** Retry the pairing service after an unreachable-signaling error. */
+function retrySignaling() {
+  hideInlineError();
+  if (app.role === 'laptop') {
+    if (runtime.code) void hostListen();
+    else newCode();
+    return;
+  }
+  const code = runtime.cells?.value() || runtime.code || '';
+  if (code.length === SESSION_CONFIG.codeLength) {
+    void startFromCode(code);
+  } else {
+    showLanding();
+  }
+}
+
+/** A signaling outage is worth a retry button; a wrong code is not. */
+function isSignalingError(key) {
+  return (
+    key === 'errors.signalingUnreachable' ||
+    key === 'errors.signalingTimeout' ||
+    key === 'errors.allServicesUnreachable'
+  );
+}
+
+/** Camera problems deserve a dialog with the fix, not just a toast. */
+function showCameraDialog(key) {
+  const permission = key === 'errors.cameraDenied';
+  try {
+    alertDialog({
+      title: t(permission ? 'camera.permission.title' : 'camera.nodevice.title'),
+      description: t(key),
+      body: `<p class="muted small">${t(
+        permission ? 'camera.permission.hint' : 'camera.nodevice.hint',
+      )}</p>`,
+      okLabel: t('common.ok'),
+      closeLabel: t('common.close'),
+    });
+  } catch {
+    toast(t(key), 'error');
+  }
+}
+
 /* ------------------------------------------------------------------ *
- * Signaling adapters (A: PeerJS, B: MQTT)
+ * Signaling adapters (A: PeerJS, and the optional MQTT backup)
  * ------------------------------------------------------------------ */
 
 /**
- * Start signaling, falling back from PeerJS to MQTT automatically.
+ * The MQTT backup adapter and its library are only fetched when the backup is
+ * enabled in config.js. While it is off, no MQTT code is loaded at all and the
+ * runtime UI never mentions a backup service.
+ */
+let mqttModulePromise = null;
+
+function loadMqttBackup() {
+  if (!mqttModulePromise) {
+    mqttModulePromise = loadVendorScript('vendor/mqtt.min.js')
+      .then(() => import('./signaling-mqtt.js'))
+      .catch((err) => {
+        mqttModulePromise = null;
+        throw err;
+      });
+  }
+  return mqttModulePromise;
+}
+
+/** Load a vendored library on demand (relative to the page, like the tags). */
+function loadVendorScript(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      if (existing.dataset.loaded === 'true') resolve();
+      else {
+        existing.addEventListener('load', () => resolve(), { once: true });
+        existing.addEventListener('error', () => reject(new Error(`failed to load ${src}`)), {
+          once: true,
+        });
+      }
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = () => {
+      script.dataset.loaded = 'true';
+      resolve();
+    };
+    script.onerror = () => reject(new Error(`failed to load ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+function announceFallback() {
+  app.emit('fallback');
+  if (app.role === 'phone') {
+    setPhoneDetail(t('phone.switchBackup'));
+    toast(t('fallback.notice'), 'info');
+  } else {
+    showNotice(t('fallback.notice'));
+  }
+}
+
+/**
+ * Start signaling.
+ *
+ * By default the app pairs through PeerJS only. When `ENABLE_BACKUP_SIGNALING`
+ * is true in config.js, a PeerJS failure additionally falls back to MQTT.
  * Resolves with a started adapter, or null if the attempt became stale.
  */
 function startSignaling(code) {
   const epoch = runtime.epoch;
   // Signaling adapters speak in host/guest terms; the UI speaks laptop/phone.
   const signalRole = app.role === 'laptop' ? 'host' : 'guest';
+
   return new Promise((resolve, reject) => {
     let settled = false;
 
-    const tryAdapter = (kind) => {
-      if (epoch !== runtime.epoch) {
-        settled = true;
-        resolve(null);
-        return;
-      }
-
-      let adapter;
-      if (kind === 'mqtt') {
-        if (!mqttAvailable()) {
-          settled = true;
-          reject({ key: 'errors.allServicesUnreachable' });
-          return;
-        }
-        adapter = createMqttSignaling({ code, role: signalRole });
-      } else {
-        if (!peerJsAvailable()) {
-          tryAdapter('mqtt');
-          return;
-        }
-        adapter = createPeerJsSignaling({ code, role: signalRole });
-      }
-
-      const cleanup = () => {
-        adapter.off('ready', onReady);
-        adapter.off('fatal', onFatal);
-        adapter.off('unreachable', onUnreachable);
-        adapter.off('error', onError);
-      };
-      const settle = (fn, arg) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        fn(arg);
-      };
-
-      const onReady = () => settle(resolve, adapter);
-      const onFatal = (info) => {
-        adapter.close();
-        settle(reject, { key: info?.code || 'errors.connectionFailed' });
-      };
-      const onUnreachable = () => {
-        adapter.close();
-        if (kind === 'peerjs') {
-          // PeerJS failed: switch to the public backup service.
-          showNotice(t('fallback.notice'));
-          app.emit('fallback');
-          tryAdapter('mqtt');
-        } else {
-          settle(reject, { key: 'errors.allServicesUnreachable' });
-        }
-      };
-      const onError = (info) => {
-        // Errors before we are ready are already handled by the Adapter;
-        // keep the console useful without spamming the UI.
-        if (!settled) console.warn('[linkdrop] signaling:', info?.code || info);
-      };
-
-      adapter.on('ready', onReady);
-      adapter.on('fatal', onFatal);
-      adapter.on('unreachable', onUnreachable);
-      adapter.on('error', onError);
-      Promise.resolve(adapter.start()).catch(() => onUnreachable());
+    const settle = (fn, arg) => {
+      if (settled) return;
+      settled = true;
+      fn(arg);
     };
 
-    tryAdapter('peerjs');
+    /** Load and start the MQTT backup adapter (only when the flag is on). */
+    const tryBackup = async () => {
+      if (epoch !== runtime.epoch) {
+        settle(resolve, null);
+        return;
+      }
+      announceFallback();
+      let mod;
+      try {
+        mod = await loadMqttBackup();
+      } catch {
+        settle(reject, { key: 'errors.allServicesUnreachable' });
+        return;
+      }
+      if (settled || epoch !== runtime.epoch) return;
+      if (!mod.mqttAvailable()) {
+        settle(reject, { key: 'errors.allServicesUnreachable' });
+        return;
+      }
+      runAdapter(mod.createMqttSignaling({ code, role: signalRole }), 'mqtt');
+    };
+
+    const runAdapter = (adapter, kind) => {
+      // `done` is per adapter, so the PeerJS failure can still fall through to
+      // a fresh MQTT attempt without being blocked by the first failure.
+      let done = false;
+      const fail = () => {
+        if (done) return;
+        done = true;
+        adapter.close();
+        if (kind === 'peerjs' && ENABLE_BACKUP_SIGNALING) {
+          // PeerJS failed: visibly switch to the public backup service.
+          void tryBackup();
+        } else {
+          settle(reject, {
+            key: kind === 'peerjs' ? 'errors.signalingUnreachable' : 'errors.allServicesUnreachable',
+          });
+        }
+      };
+
+      adapter.on('ready', () => {
+        done = true;
+        settle(resolve, adapter);
+      });
+      adapter.on('fatal', (info) => {
+        done = true;
+        adapter.close();
+        settle(reject, { key: info?.code || 'errors.connectionFailed' });
+      });
+      adapter.on('unreachable', fail);
+      adapter.on('error', (info) => {
+        if (!settled) console.warn('[linkdrop] signaling:', info?.code || info);
+      });
+      Promise.resolve(adapter.start()).catch(fail);
+    };
+
+    if (!peerJsAvailable()) {
+      // The vendored PeerJS bundle is missing; without the backup there is
+      // nothing left to try.
+      if (ENABLE_BACKUP_SIGNALING) void tryBackup();
+      else settle(reject, { key: 'errors.signalingUnreachable' });
+      return;
+    }
+
+    runAdapter(createPeerJsSignaling({ code, role: signalRole }), 'peerjs');
   });
 }
 
@@ -356,7 +621,7 @@ function wireSession(session) {
     console.warn('[linkdrop] signaling:', info?.code || info);
   });
 
-  session.on('fallback', () => showNotice(t('fallback.notice')));
+  session.on('fallback', () => announceFallback());
 
   session.on('stream', (stream) => {
     if (session !== runtime.session) return;
@@ -383,6 +648,12 @@ function wireSession(session) {
     handleLost();
   });
 
+  // The ~20 s watchdog: the two devices could not reach each other.
+  session.on('timeout', (info) => {
+    if (session !== runtime.session) return;
+    showFatalConnectError(info?.code || 'errors.iceFailed');
+  });
+
   session.on('error', (info) => {
     console.warn('[linkdrop] session:', info?.scope || '', info?.error || info);
   });
@@ -390,12 +661,19 @@ function wireSession(session) {
 
 /** Guest role: publish the phone's camera and offer the connection. */
 async function joinSession(input) {
+  if (runtime.joining) return;
   const code = normalizeCode(input);
   if (code.length !== SESSION_CONFIG.codeLength) {
-    showInlineError('errors.wrongOrExpiredCode');
+    if (app.role === 'phone') {
+      showLanding();
+      showInlineError('errors.wrongOrExpiredCode');
+    } else {
+      showInlineError('errors.wrongOrExpiredCode');
+    }
     return;
   }
 
+  runtime.joining = true;
   runtime.suppressReconnect = true;
   await teardownSession();
   runtime.suppressReconnect = false;
@@ -404,19 +682,18 @@ async function joinSession(input) {
   runtime.issuedAt = Date.now();
   setStatus('connecting');
   hideInlineError();
-
-  // The guest is the offerer, so the camera has to be ready first. This is
-  // also the moment the browser shows its camera permission prompt.
-  let stream;
-  try {
-    stream = await app.camera.ensureStream();
-  } catch (err) {
-    showInlineError(err?.key || 'errors.cameraFailed');
-    setStatus('disconnected');
-    return;
-  }
+  showConnecting();
 
   try {
+    // The guest is the offerer, so the camera has to be ready first. This is
+    // also the moment the browser shows its camera permission prompt.
+    let stream;
+    try {
+      stream = await app.camera.ensureStream();
+    } catch (err) {
+      throw { key: err?.key || 'errors.cameraFailed' };
+    }
+
     const adapter = await startSignaling(code);
     if (!adapter) return; // teardown happened while we waited
 
@@ -432,10 +709,22 @@ async function joinSession(input) {
 
     await session.createOffer();
   } catch (err) {
-    showInlineError(err?.key || 'errors.connectionFailed');
-    toast(t(err?.key || 'errors.connectionFailed'), 'error');
+    const key = err?.key || 'errors.connectionFailed';
     await teardownSession();
     setStatus('disconnected');
+    if (app.role === 'phone') {
+      showLanding();
+      showInlineError(key, { retry: isSignalingError(key) });
+    } else {
+      showInlineError(key, { retry: isSignalingError(key) });
+    }
+    if (key === 'errors.cameraDenied' || key === 'errors.noCamera' || key === 'errors.cameraFailed') {
+      showCameraDialog(key);
+    } else {
+      toast(t(key), 'error');
+    }
+  } finally {
+    runtime.joining = false;
   }
 }
 
@@ -448,7 +737,8 @@ async function hostListen() {
   runtime.suppressReconnect = false;
 
   if (!runtime.issuedAt) runtime.issuedAt = Date.now();
-  setStatus('waiting');
+  setConnectStep(1);
+  setStatus('waiting', t('connect.waiting'));
   hideInlineError();
   updateDeviceName();
 
@@ -465,7 +755,8 @@ async function hostListen() {
     await session.start();
     app.emit('session', session);
   } catch (err) {
-    showInlineError(err?.key || 'errors.connectionFailed');
+    const key = err?.key || 'errors.connectionFailed';
+    showInlineError(key, { retry: isSignalingError(key) });
     setStatus('disconnected');
   }
 }
@@ -491,7 +782,7 @@ function onControlMessage(message) {
         void teardownSession().then(() => {
           setStatus('disconnected');
           hideVerify();
-          showScreen('connect');
+          showLanding();
           showInlineError('verify.rejected');
         });
       }
@@ -514,21 +805,27 @@ async function onChannelsOpen(session) {
     runtime.verifyNumber = '';
   }
 
-  if (app.role === 'laptop') await hostVerify(session);
-  else showGuestVerify();
+  if (app.role === 'laptop') {
+    setConnectStep(2);
+    await hostVerify(session);
+  } else {
+    showGuestVerify();
+  }
 }
 
 async function hostVerify(session) {
   const number = runtime.verifyNumber || '----';
   // Wait briefly for the phone's hello so we can show its name.
   const name =
-    app.peerName || (await Promise.race([
+    app.peerName ||
+    (await Promise.race([
       runtime.helloPromise,
       new Promise((resolve) => setTimeout(() => resolve(t('conn.device')), 2000)),
-    ])) || t('conn.device');
+    ])) ||
+    t('conn.device');
 
   if (runtime.verifyNumber && app.settings.isTrusted(number, name)) {
-    toast(t('verify.trusted'));
+    toast(t('verify.trusted'), 'info');
     acceptDevice(session);
     return;
   }
@@ -563,105 +860,101 @@ function acceptDevice(session) {
   try {
     session.sendControl({ t: 'accept' });
   } catch {
-    // If the channel is already gone the phone will simply time out.
+    /* If the channel is already gone the phone will simply time out. */
   }
   activateSession();
 }
 
 function activateSession() {
+  const wasReconnecting = Boolean(runtime.bannerController);
   hideVerify();
   runtime.reconnectAttempts = 0;
+  setConnectStep(3);
   setStatus('connected');
   startStatsPolling();
   app.emit('activated');
-  showScreen('camera');
+  // The laptop stays on Connect, which now shows the "connected" card; the
+  // phone moves straight to its camera screen.
+  if (app.role !== 'laptop') showScreen('camera');
+  if (wasReconnecting) endReconnectBanner(t('conn.reconnected'));
 }
 
 /* ------------------------------------------------------------------ *
  * Verification dialog
  * ------------------------------------------------------------------ */
 
-function verifyModal() {
-  return $('#verify-modal');
+function buildVerifyBody(number, deviceLine, hintLine) {
+  const body = document.createElement('div');
+  body.className = 'verify-body';
+  const code = document.createElement('div');
+  code.className = 'verify-code';
+  code.textContent = number;
+  const device = document.createElement('p');
+  device.className = 'verify-device';
+  device.textContent = deviceLine;
+  const hint = document.createElement('p');
+  hint.className = 'verify-hint muted small';
+  hint.textContent = hintLine;
+  body.append(code, device, hint);
+  return body;
 }
 
 function hideVerify() {
-  const modal = verifyModal();
-  if (modal) {
-    modal.hidden = true;
-    modal.textContent = '';
+  const modal = runtime.verifyModal;
+  runtime.verifyModal = null;
+  try {
+    modal?.close();
+  } catch {
+    /* ignore */
   }
 }
 
-function buildVerifyShell(titleKey) {
-  const modal = verifyModal();
-  modal.textContent = '';
-  modal.hidden = false;
-
-  const card = document.createElement('div');
-  card.className = 'modal-card';
-  card.setAttribute('role', 'dialog');
-  card.setAttribute('aria-modal', 'true');
-  card.setAttribute('aria-labelledby', 'verify-title');
-
-  const title = document.createElement('h2');
-  title.id = 'verify-title';
-  title.className = 'modal-title';
-  title.textContent = t(titleKey);
-
-  const code = document.createElement('div');
-  code.className = 'verify-code';
-  code.textContent = runtime.verifyNumber || '----';
-  code.setAttribute('aria-label', t('verify.numberLabel'));
-
-  const label = document.createElement('p');
-  label.className = 'muted small';
-  label.textContent = t('verify.numberLabel');
-
-  card.append(title, code, label);
-  modal.appendChild(card);
-  return { card, title, code, label };
-}
-
 function showHostVerify({ name, number, onAllow, onDeny }) {
-  const { card, title } = buildVerifyShell('verify.allowTitle');
-  const body = document.createElement('p');
-  body.className = 'modal-body';
-  body.textContent = t('verify.allowBody', { name });
-  card.insertBefore(body, card.children[1]);
-
-  const actions = document.createElement('div');
-  actions.className = 'modal-actions';
-  const deny = document.createElement('button');
-  deny.type = 'button';
-  deny.className = 'btn btn-ghost';
-  deny.textContent = t('verify.deny');
-  deny.addEventListener('click', onDeny);
-  const allow = document.createElement('button');
-  allow.type = 'button';
-  allow.className = 'btn btn-primary';
-  allow.textContent = t('verify.allow');
-  allow.addEventListener('click', onAllow);
-  actions.append(deny, allow);
-  card.appendChild(actions);
-
-  // Focus the primary action so keyboard users can act immediately.
-  allow.focus();
-  title.setAttribute('tabindex', '-1');
+  hideVerify();
+  const body = buildVerifyBody(number, `${t('verify.device')}: ${name}`, t('verify.hint'));
+  runtime.verifyModal = openModal({
+    title: t('verify.acceptTitle'),
+    body,
+    dismissible: false,
+    closeLabel: t('common.close'),
+    actions: [
+      {
+        label: t('verify.reject'),
+        variant: 'ghost',
+        onClick: ({ close }) => {
+          close();
+          onDeny();
+        },
+      },
+      {
+        label: t('verify.accept'),
+        variant: 'primary',
+        onClick: ({ close }) => {
+          close();
+          onAllow();
+        },
+      },
+    ],
+  });
 }
 
 function showGuestVerify() {
-  const { card } = buildVerifyShell('phone.connectTitle');
-
-  const hint = document.createElement('p');
-  hint.className = 'modal-body';
-  hint.textContent = t('verify.phoneCheck');
-
+  hideVerify();
+  const name = app.peerName || t('conn.device');
+  const body = buildVerifyBody(
+    runtime.verifyNumber || '----',
+    `${t('verify.device')}: ${name}`,
+    t('verify.phoneCheck'),
+  );
   const waiting = document.createElement('p');
-  waiting.className = 'muted small waiting-line';
+  waiting.className = 'verify-waiting muted small';
   waiting.textContent = t('verify.waitingAccept');
-
-  card.append(hint, waiting);
+  body.appendChild(waiting);
+  runtime.verifyModal = openModal({
+    title: t('verify.numberLabel'),
+    body,
+    dismissible: false,
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -675,16 +968,18 @@ function startStatsPolling() {
     if (!session || !session.isConnected) return;
     const stats = await session.getStats();
 
-    const typeNode = $('[data-conn-type]');
-    if (typeNode) {
-      typeNode.textContent = stats.connectionType
-        ? stats.connectionType === 'relayed'
-          ? t('conn.type.relayed')
-          : t('conn.type.local')
-        : '—';
-    }
-    const latencyNode = $('[data-conn-latency]');
-    if (latencyNode) latencyNode.textContent = stats.rttMs != null ? `${stats.rttMs} ms` : '—';
+    const typeText = stats.connectionType
+      ? stats.connectionType === 'relayed'
+        ? t('conn.type.relayed')
+        : t('conn.type.local')
+      : '—';
+    document.querySelectorAll('[data-conn-type]').forEach((node) => {
+      node.textContent = typeText;
+    });
+    const latencyText = stats.rttMs != null ? `${stats.rttMs} ms` : '—';
+    document.querySelectorAll('[data-conn-latency]').forEach((node) => {
+      node.textContent = latencyText;
+    });
 
     const setStat = (name, value) => {
       const node = document.querySelector(`[data-stat="${name}"]`);
@@ -705,12 +1000,39 @@ function stopStatsPolling() {
  * Disconnect and reconnect
  * ------------------------------------------------------------------ */
 
+function showReconnectBanner(message, type = 'warning') {
+  if (runtime.bannerController) runtime.bannerController.update(message);
+  else runtime.bannerController = showBanner(message, { type });
+}
+
+function endReconnectBanner(message) {
+  const controller = runtime.bannerController;
+  runtime.bannerController = null;
+  if (!controller) return;
+  if (message) {
+    controller.update(message);
+    setTimeout(() => controller.dismiss(), 2500);
+  } else {
+    controller.dismiss();
+  }
+}
+
+function showFatalConnectError(key) {
+  hideVerify();
+  endReconnectBanner();
+  runtime.suppressReconnect = true;
+  void teardownSession().then(() => {
+    runtime.suppressReconnect = false;
+    setStatus('disconnected');
+    if (app.role === 'phone') showLanding();
+    showInlineError(key);
+    toast(t(key), 'error');
+  });
+}
+
 function handleLost() {
   if (runtime.suppressReconnect) return;
-  if (runtime.status === 'connected') {
-    toast(t('errors.channelClosed'), 'warn');
-    app.emit('disconnected');
-  }
+  if (runtime.status === 'connected') app.emit('disconnected');
   void teardownSession().then(scheduleReconnect);
 }
 
@@ -720,28 +1042,27 @@ function scheduleReconnect() {
   // A code is only valid for a while; after that the user needs a new one.
   if (Date.now() - runtime.issuedAt > SESSION_CONFIG.codeTtlMs) {
     setStatus('disconnected');
-    if (app.role === 'laptop') {
-      showInlineError('errors.codeExpired');
-    } else {
-      showScreen('connect');
-      showInlineError('errors.codeExpired');
-    }
+    endReconnectBanner();
+    if (app.role === 'phone') showLanding();
+    showInlineError('errors.codeExpired');
     return;
   }
 
   const attempt = runtime.reconnectAttempts++;
   if (attempt >= 6) {
     setStatus('disconnected');
+    showReconnectBanner(t('conn.reconnectFailed'), 'error');
+    if (app.role === 'phone') showLanding();
     showInlineError('errors.connectionFailed');
     return;
   }
 
-  // Exponential backoff with a ceiling.
   const delay = Math.min(
     SESSION_CONFIG.reconnectMaxDelayMs,
     SESSION_CONFIG.reconnectBaseDelayMs * 2 ** attempt,
   );
   setStatus('connecting', t('conn.reconnecting'));
+  showReconnectBanner(t('conn.lost'));
   runtime.reconnectTimer = setTimeout(() => {
     if (runtime.suppressReconnect) return;
     if (app.role === 'laptop') void hostListen();
@@ -755,12 +1076,13 @@ function disconnect() {
   runtime.reconnectAttempts = 0;
   hideVerify();
   hideNotice();
+  endReconnectBanner();
   void teardownSession().then(() => {
     setStatus('disconnected');
     app.emit('disconnected');
     runtime.suppressReconnect = false;
     if (app.role === 'phone') {
-      showScreen('connect');
+      showLanding();
       return;
     }
     // The laptop keeps hosting: reuse the code while it is still valid,
@@ -768,6 +1090,11 @@ function disconnect() {
     if (Date.now() - runtime.issuedAt > SESSION_CONFIG.codeTtlMs) newCode();
     else void hostListen();
   });
+}
+
+function cancelConnect() {
+  runtime.joining = false;
+  disconnect();
 }
 
 /* ------------------------------------------------------------------ *
@@ -801,38 +1128,201 @@ function checkEnvironment() {
 }
 
 /* ------------------------------------------------------------------ *
- * Phone-side code input
+ * Phone: code entry cells, scanner and auto-connect
  * ------------------------------------------------------------------ */
 
-function bindPhoneInput() {
-  const input = $('#code-input');
-  const button = $('#connect-btn');
-  if (!input || !button) return;
+function bindCodeCells(container, onComplete) {
+  const cells = [...container.querySelectorAll('.code-cell')];
+  if (!cells.length) return null;
 
-  input.addEventListener('input', () => {
-    // Keep only digits and group them as the user types.
-    const raw = normalizeCode(input.value).slice(0, SESSION_CONFIG.codeLength);
-    input.value = formatCode(raw);
-  });
-
-  const submit = () => {
-    const code = normalizeCode(input.value);
-    if (code.length !== SESSION_CONFIG.codeLength) {
-      showInlineError('errors.wrongOrExpiredCode');
-      return;
-    }
-    void joinSession(code);
+  const value = () => cells.map((cell) => cell.value).join('');
+  const focusIndex = (index) => {
+    const bounded = Math.max(0, Math.min(cells.length - 1, index));
+    cells[bounded]?.focus();
   };
 
-  button.addEventListener('click', submit);
-  input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') submit();
+  const fillFrom = (start, digits, notify = true) => {
+    for (let k = 0; k < digits.length && start + k < cells.length; k++) {
+      cells[start + k].value = digits[k];
+    }
+    focusIndex(start + digits.length);
+    if (notify) maybeComplete();
+  };
+
+  const maybeComplete = () => {
+    if (value().length === SESSION_CONFIG.codeLength) onComplete(value());
+  };
+
+  cells.forEach((cell, index) => {
+    cell.addEventListener('input', () => {
+      const digits = cell.value.replace(/\D/g, '');
+      if (!digits) {
+        cell.value = '';
+        return;
+      }
+      if (digits.length > 1) {
+        fillFrom(index, digits);
+        return;
+      }
+      cell.value = digits[0];
+      if (index < cells.length - 1) focusIndex(index + 1);
+      maybeComplete();
+    });
+
+    cell.addEventListener('keydown', (event) => {
+      if (event.key === 'Backspace' && !cell.value && index > 0) {
+        event.preventDefault();
+        cells[index - 1].value = '';
+        focusIndex(index - 1);
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        focusIndex(index - 1);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        focusIndex(index + 1);
+      } else if (event.key === 'Enter') {
+        maybeComplete();
+      }
+    });
+
+    cell.addEventListener('paste', (event) => {
+      event.preventDefault();
+      const text = (event.clipboardData?.getData('text') || '').replace(/\D/g, '');
+      if (text) fillFrom(index, text);
+    });
+
+    cell.addEventListener('focus', () => cell.select());
   });
+
+  return {
+    value,
+    focus: () => focusIndex(0),
+    clear: () => {
+      cells.forEach((cell) => {
+        cell.value = '';
+      });
+      focusIndex(0);
+    },
+    fill: (digits) => {
+      cells.forEach((cell) => {
+        cell.value = '';
+      });
+      // A programmatic fill must not re-fire onComplete: startFromCode() calls
+      // this after it already has the code, so notifying here would recurse.
+      fillFrom(0, digits, false);
+    },
+  };
+}
+
+function readCodeFromUrl() {
+  const params = new URLSearchParams(location.search);
+  let raw = params.get('code');
+  if (!raw && location.hash) {
+    const match = /code=([0-9]+)/.exec(location.hash);
+    if (match) raw = match[1];
+  }
+  return normalizeCode(raw);
+}
+
+function startFromCode(code) {
+  const normalized = normalizeCode(code);
+  if (normalized.length !== SESSION_CONFIG.codeLength) {
+    showLanding();
+    showInlineError('errors.wrongOrExpiredCode');
+    return;
+  }
+  runtime.cells?.fill(normalized);
+  void joinSession(normalized);
+}
+
+function scannerErrorKey(err) {
+  const name = err?.name || '';
+  if (name === 'NotAllowedError' || name === 'SecurityError') return 'phone.scanDenied';
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'errors.noCamera';
+  return 'errors.cameraFailed';
+}
+
+async function openScanner() {
+  if (!QrScanner.supported) {
+    toast(t('phone.scanUnsupported'), 'warn');
+    return;
+  }
+  const overlay = $('#scanner');
+  const video = $('#scanner-video');
+  const message = $('#scanner-msg');
+  if (!overlay || !video) return;
+
+  overlay.hidden = false;
+  document.documentElement.classList.add('ld-scroll-lock');
+  if (message) message.textContent = t('phone.scanStarting');
+
+  runtime.scanner = new QrScanner(video, {
+    onResult: (text) => {
+      const code = extractCode(text);
+      closeScanner();
+      if (!code) {
+        toast(t('phone.scanInvalid'), 'warn');
+        return;
+      }
+      startFromCode(code);
+    },
+  });
+
+  try {
+    await runtime.scanner.start();
+    if (message) message.textContent = t('phone.scanHint');
+  } catch (err) {
+    closeScanner();
+    toast(t(scannerErrorKey(err)), 'error');
+  }
+}
+
+function closeScanner() {
+  try {
+    runtime.scanner?.stop();
+  } catch {
+    /* ignore */
+  }
+  runtime.scanner = null;
+  const overlay = $('#scanner');
+  if (overlay) overlay.hidden = true;
+  document.documentElement.classList.remove('ld-scroll-lock');
 }
 
 /* ------------------------------------------------------------------ *
- * Boot
+ * Connection check (Help)
  * ------------------------------------------------------------------ */
+
+function mountChecks() {
+  const host = $('[data-connection-check]');
+  if (host) mountConnectionCheck(host);
+}
+
+/* ------------------------------------------------------------------ *
+ * Boot helpers
+ * ------------------------------------------------------------------ */
+
+function refreshDynamicText() {
+  renderCode();
+  setStatus(runtime.status, $('[data-connect-detail]')?.textContent || '');
+  if (runtime.connectPhase === 'connected') fillConnectedCard();
+  mountChecks();
+}
+
+function fatalRoleMessage() {
+  const shell = $('.phone-shell');
+  const message = $('#role-message');
+  if (shell) shell.hidden = true;
+  if (message) message.hidden = false;
+}
+
+function redirectToPhone() {
+  const base = location.href.split(/[?#]/)[0].replace(/[^/]*$/, '');
+  const url = new URL(base + 'phone.html', location.href);
+  url.search = location.search;
+  url.hash = location.hash;
+  location.replace(url.toString());
+}
 
 function bindNav() {
   document.addEventListener('click', (event) => {
@@ -849,21 +1339,48 @@ function bindNav() {
       newCode();
       return;
     }
+    if (event.target.closest('[data-action="retry-signaling"]')) {
+      retrySignaling();
+      return;
+    }
     if (event.target.closest('[data-action="copy-code"]')) {
       copyCode();
+      return;
+    }
+    if (event.target.closest('[data-action="scan"], [data-action="scan-close"]')) {
+      closeScanner();
+      if (event.target.closest('[data-action="scan"]')) openScanner();
+      return;
+    }
+    if (event.target.closest('[data-action="cancel-connect"]')) {
+      cancelConnect();
+      return;
+    }
+    if (event.target.closest('[data-action="open-camera"]')) {
+      showScreen('camera');
+      return;
+    }
+    if (event.target.closest('[data-action="open-files"]')) {
+      showScreen('files');
       return;
     }
     if (event.target.closest('[data-notice-close]')) {
       hideNotice();
     }
   });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && runtime.scanner) closeScanner();
+  });
+
+  window.addEventListener('resize', moveNavIndicators);
 }
 
 async function copyCode() {
   const code = runtime.code || '';
   try {
     await navigator.clipboard.writeText(code);
-    toast(t('connect.copied'));
+    toast(t('connect.copied'), 'success');
   } catch {
     // Clipboard API needs a secure context and permission; fall back to a
     // temporary selection the user can copy manually.
@@ -875,54 +1392,98 @@ async function copyCode() {
       selection.removeAllRanges();
       selection.addRange(range);
     }
-    toast(t('connect.copied'));
+    toast(t('connect.copied'), 'success');
   }
 }
 
-app.toast = toast;
-app.sendControl = (object) => (app.session ? app.session.sendControl(object) : false);
-app.settings.on('change', (info) => {
-  if (info.key === 'theme') applyTheme(info.value);
-});
+/* ------------------------------------------------------------------ *
+ * Role-specific boot
+ * ------------------------------------------------------------------ */
+
+function setupCommon() {
+  runtime.router = new ScreenRouter({
+    root: $('[data-screens]'),
+    ids: app.role === 'phone' ? PHONE_SCREENS : LAPTOP_SCREENS,
+    initial: app.role === 'phone' ? 'landing' : 'connect',
+    scroller: app.role === 'phone' ? $('.phone-content') : $('.content'),
+    onChange: onScreenChange,
+  });
+  moveNavIndicators();
+
+  app.camera = initCamera(app);
+  initFiles(app);
+
+  const settingsHost = $('[data-settings-host]');
+  if (settingsHost) settingsHost.appendChild(mountSettings(app));
+
+  mountChecks();
+  bindNav();
+}
+
+function bootLaptop() {
+  setupCommon();
+  const hash = location.hash.replace('#', '');
+  if (LAPTOP_SCREENS.includes(hash) && hash !== 'connect') {
+    showScreen(hash);
+  } else {
+    onScreenChange('connect');
+  }
+  newCode();
+}
+
+function bootPhone() {
+  setupCommon();
+
+  const cellsHost = $('[data-code-cells]');
+  if (cellsHost) {
+    runtime.cells = bindCodeCells(cellsHost, (code) => startFromCode(code));
+  }
+
+  $('[data-action="phone-connect"]')?.addEventListener('click', () => {
+    const code = runtime.cells?.value() || '';
+    if (code.length !== SESSION_CONFIG.codeLength) {
+      showInlineError('errors.wrongOrExpiredCode');
+      return;
+    }
+    startFromCode(code);
+  });
+
+  const fromUrl = readCodeFromUrl();
+  if (fromUrl.length === SESSION_CONFIG.codeLength) {
+    // ?code= in the URL: connect straight away, no extra tap.
+    showConnecting();
+    runtime.cells?.fill(fromUrl);
+    void joinSession(fromUrl);
+  } else {
+    setStatus('disconnected');
+    showLanding();
+    setTimeout(() => runtime.cells?.focus(), 120);
+  }
+}
 
 function boot() {
+  // Inject the vendored icon sprite before anything renders.
+  mountIconSprite();
+
   // Theme and language first: everything else depends on them.
   applyTheme(app.settings.get('theme'));
   setLanguage(app.settings.language);
   translateDom();
+
+  // Role separation, before anything else starts.
+  if (app.role === 'phone' && isDesktopClass()) {
+    fatalRoleMessage();
+    return;
+  }
+  if (app.role === 'laptop' && isPhoneClass()) {
+    redirectToPhone();
+    return;
+  }
+
   if (!checkEnvironment()) return;
 
-  bindNav();
-  $('[data-stats-toggle]')?.setAttribute('aria-expanded', 'false');
-
-  // Features only ever see the shared session.
-  app.camera = initCamera(app);
-  initFiles(app);
-
-  // Settings screen is built by the settings module.
-  const host = $('[data-settings-host]');
-  if (host) host.appendChild(mountSettings(app));
-
-  if (app.role === 'phone') {
-    bindPhoneInput();
-
-    // Pre-fill from ?code= so the QR code works with any camera app.
-    const params = new URLSearchParams(location.search);
-    const fromUrl = normalizeCode(params.get('code'));
-    const input = $('#code-input');
-    if (fromUrl.length === SESSION_CONFIG.codeLength) {
-      if (input) input.value = formatCode(fromUrl);
-      void joinSession(fromUrl);
-    } else {
-      setStatus('disconnected');
-      showScreen('connect');
-    }
-  } else {
-    // The laptop owns the code and starts listening immediately.
-    const hash = location.hash.replace('#', '');
-    showScreen(['connect', 'camera', 'files', 'settings', 'help'].includes(hash) ? hash : 'connect');
-    newCode();
-  }
+  if (app.role === 'phone') bootPhone();
+  else bootLaptop();
 
   window.addEventListener('beforeunload', () => {
     try {
@@ -933,11 +1494,19 @@ function boot() {
   });
 }
 
+app.toast = toast;
+app.showCameraError = showCameraDialog;
+app.sendControl = (object) => (app.session ? app.session.sendControl(object) : false);
+app.settings.on('change', (info) => {
+  if (info.key === 'theme') applyTheme(info.value);
+});
+
 // Language switching rebuilds the static text; dynamic strings are set with
-// t() whenever they change, so nothing else is needed here.
+// t() whenever they change, so we refresh the few that live in the DOM.
 app.applyLanguage = (language) => {
   setLanguage(language);
   translateDom();
+  refreshDynamicText();
 };
 
 app.onReset = () => {

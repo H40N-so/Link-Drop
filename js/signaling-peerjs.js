@@ -24,17 +24,7 @@ export class PeerJsSignaling extends SignalingBase {
   }
 
   _peerOptions() {
-    if (PEERJS_CONFIG.useCloud) {
-      // PeerJS Cloud defaults; listed explicitly so they are easy to change.
-      return { host: '0.peerjs.com', port: 443, path: '/', key: 'peerjs', secure: true };
-    }
-    return {
-      host: PEERJS_CONFIG.host,
-      port: PEERJS_CONFIG.port,
-      path: PEERJS_CONFIG.path,
-      key: PEERJS_CONFIG.key,
-      secure: PEERJS_CONFIG.secure,
-    };
+    return peerJsOptions();
   }
 
   async start() {
@@ -177,6 +167,27 @@ export class PeerJsSignaling extends SignalingBase {
 /** Factory used by the app shell. */
 export function createPeerJsSignaling(options) {
   return new PeerJsSignaling(options);
+}
+
+/** PeerJS connection options, shared with the Connection check tool. */
+export function peerJsOptions() {
+  if (PEERJS_CONFIG.useCloud) {
+    // PeerJS Cloud defaults; listed explicitly so they are easy to change.
+    return { host: '0.peerjs.com', port: 443, path: '/', key: 'peerjs', secure: true };
+  }
+  return {
+    host: PEERJS_CONFIG.host,
+    port: PEERJS_CONFIG.port,
+    path: PEERJS_CONFIG.path,
+    key: PEERJS_CONFIG.key,
+    secure: PEERJS_CONFIG.secure,
+  };
+}
+
+/** Host of the active PeerJS server, for display in the Connection check. */
+export function peerJsHostLabel() {
+  const opts = peerJsOptions();
+  return `${opts.host}${opts.port && opts.port !== 443 ? `:${opts.port}` : ''}`;
 }
 
 /** True when the PeerJS bundle was actually loaded from /vendor. */

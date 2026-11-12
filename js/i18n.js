@@ -45,15 +45,21 @@ const EN = {
   'connect.copy': 'Copy code',
   'connect.copied': 'Code copied',
   'connect.newCode': 'Generate new code',
+  'connect.retry': 'Retry',
   'connect.qrHint': 'Scan this QR code with your phone camera — it opens the phone page with the code filled in.',
   'connect.qrAlt': 'QR code that opens the phone page with the pairing code',
   'connect.openPhone': 'Open phone page',
   'connect.expiresIn': 'Code expires in {time}',
   'connect.expired': 'This code has expired. Generate a new one.',
   'connect.waiting': 'Waiting for a phone…',
-  'connect.step1': 'Open the camera on your phone and scan the QR code, or open the phone page and type the code.',
-  'connect.step2': 'Tap Allow on the phone when the browser asks for camera access.',
-  'connect.step3': 'Check the 4-digit number on both screens, then accept the connection.',
+  'connect.step1': 'Scan or type the code',
+  'connect.step2': 'Allow camera access on the phone',
+  'connect.step3': 'Match the 4 digits',
+  'connect.connectedTitle': 'Phone connected',
+  'connect.connectedSub': '{name} is ready to stream and share files.',
+  'connect.openCamera': 'Open camera',
+  'connect.sendFiles': 'Send files',
+  'connect.detail.status': 'Status',
 
   /* ---- verification ---- */
   'verify.allowTitle': 'Allow this device to connect?',
@@ -95,6 +101,11 @@ const EN = {
   'camera.controls.audioHint': 'Sends the phone microphone to the laptop',
   'camera.controls.unsupported': 'Not available on this phone',
   'camera.snapshotSaved': 'Snapshot saved',
+  'camera.permission.title': 'Allow camera access',
+  'camera.permission.hint':
+    'Open the camera icon in your browser’s address bar, choose “Allow”, then try again.',
+  'camera.nodevice.title': 'No camera found',
+  'camera.nodevice.hint': 'Connect a camera, or open LinkDrop on a device that has one.',
 
   /* ---- camera (phone) ---- */
   'phone.connectTitle': 'Connect to a laptop',
@@ -103,6 +114,7 @@ const EN = {
   'phone.connect': 'Connect',
   'phone.disconnect': 'Disconnect',
   'phone.camTitle': 'Camera',
+  'phone.camera': 'Camera',
   'phone.streaming': 'Streaming to {name}',
   'phone.notStreaming': 'Camera is stopped',
   'phone.start': 'Start camera',
@@ -189,10 +201,10 @@ const EN = {
   'help.subtitle': 'Short answers to the usual questions.',
   'help.pairing.title': 'How pairing works',
   'help.pairing.body':
-    'The laptop shows an 8-digit code and a QR code. Scan the QR code with the phone camera, or open the phone page and type the code. The code is only valid for 10 minutes and only one phone can pair at a time.',
-  'help.backup.title': 'The backup pairing service',
+    'The laptop shows an 8-digit code and a QR code, then walks you through three steps: scan or type the code, allow camera access on the phone, and match the 4 digits. Once connected, it shows the device name, whether the link is local or relayed, and the current latency. The code is only valid for 10 minutes and only one phone can pair at a time.',
+  'help.backup.title': 'Backup pairing (experimental)',
   'help.backup.body':
-    'Setup messages normally travel through PeerJS Cloud. If that service is unreachable, LinkDrop automatically switches to a public MQTT broker and shows a small notice. Setup messages are encrypted either way, and the broker only ever sees a hash of the code.',
+    'LinkDrop pairs through PeerJS Cloud. An optional backup that falls back to public MQTT brokers is experimental and off by default; set ENABLE_BACKUP_SIGNALING to true in config.js to enable it. While it is off, no MQTT code is loaded and the app never mentions a backup service.',
   'help.verify.title': 'The verification number',
   'help.verify.body':
     'After the direct connection is up, both screens show the same 4-digit number, derived from the two devices’ certificates. If the numbers differ, someone may be intercepting the connection — press Deny and try again.',
@@ -223,16 +235,91 @@ const EN = {
   'errors.codeExpired': 'This code has expired. Generate a new one.',
   'errors.signalingUnreachable': 'The pairing service could not be reached.',
   'errors.signalingTimeout': 'The pairing service did not respond in time.',
+  'errors.signalingHint': 'Check that you are online, then try again.',
   'errors.allServicesUnreachable':
-    'Both pairing services are unreachable. Check your internet connection and try again.',
+    'The pairing service is unreachable. Check your internet connection and try again.',
   'errors.browserIncompatible': 'This browser does not support the features LinkDrop needs. Try a recent Chrome, Edge, Firefox or Safari.',
   'errors.cameraDenied':
     'Camera permission was denied. Allow camera access for this site, then try again.',
   'errors.noCamera': 'No camera was found on this device.',
   'errors.cameraFailed': 'The camera could not be started.',
+  'errors.micDenied':
+    'Microphone permission was denied. Allow microphone access for this site, then try again.',
   'errors.connectionFailed': 'The connection failed. Please try again.',
   'errors.channelClosed': 'The connection was interrupted during the transfer.',
   'errors.generic': 'Something went wrong.',
+  'errors.iceFailed':
+    'The two devices could not reach each other directly. This often happens when they are on different networks or one is on mobile data — a TURN server is usually needed. Connect both devices to the same Wi-Fi, or add a TURN server in config.js.',
+
+  /* ---- phone landing + scanner ---- */
+  'phone.landingTitle': 'Connect to your laptop',
+  'phone.landingSubtitle': 'Type the 8-digit code, or scan the QR code shown on your laptop.',
+  'phone.enterCode': 'Pairing code',
+  'phone.codeHint': '8 digits, shown on your laptop',
+  'phone.scanQr': 'Scan QR code',
+  'phone.connectingTo': 'Connecting to your laptop…',
+  'phone.connectingHint': 'Setting up a direct connection. This usually takes a few seconds.',
+  'phone.scanTitle': 'Scan the QR code',
+  'phone.scanHint': 'Point the camera at the QR code on your laptop.',
+  'phone.scanStarting': 'Starting the camera…',
+  'phone.scanInvalid': 'That QR code is not a LinkDrop code. Try again.',
+  'phone.scanUnsupported': 'This browser cannot scan QR codes. Type the code instead.',
+  'phone.scanDenied': 'Camera access was denied. Allow it to scan, or type the code.',
+  'phone.back': 'Back',
+  'phone.tryAgain': 'Try again',
+  'phone.switchBackup': 'The usual pairing service is slow — using the backup service.',
+  'phone.expired': 'This code has expired. Ask your laptop for a new one.',
+
+  /* ---- role separation ---- */
+  'role.phoneOnDesktop.title': 'This page is for your phone',
+  'role.phoneOnDesktop.body': 'Open LinkDrop on your computer and scan the QR code with your phone.',
+
+  /* ---- verification (redesigned) ---- */
+  'verify.acceptTitle': 'Allow this device?',
+  'verify.device': 'Device',
+  'verify.hint': 'Check that this number matches the one on your phone, then accept.',
+  'verify.accept': 'Accept',
+  'verify.reject': 'Reject',
+
+  /* ---- connection check ---- */
+  'help.check.title': 'Connection check',
+  'help.check.body':
+    'Run a quick test to see what kind of connection is likely to work from this device.',
+  'checks.intro': 'Run a quick test of the pairing services, STUN and the connection types available from this device.',
+  'checks.run': 'Run connection check',
+  'checks.runAgain': 'Run again',
+  'checks.running': 'Checking…',
+  'checks.testing': 'Testing…',
+  'checks.notTested': 'Not tested yet',
+  'checks.peerjs': 'Pairing service ({host})',
+  'checks.broker': 'Backup service ({host})',
+  'checks.ice': 'Connection types (ICE)',
+  'checks.iceGathered': 'Gathered successfully',
+  'checks.candidate.host': 'Direct',
+  'checks.candidate.srflx': 'Server reflexive',
+  'checks.candidate.relay': 'Relay (TURN)',
+  'checks.conclTurn':
+    'Excellent — a TURN relay is available, so connections across different networks and mobile data should work.',
+  'checks.conclStun':
+    'Good — devices on the same Wi-Fi should connect. Devices on different networks, or one on mobile data, may need a TURN server (see config.js).',
+  'checks.conclLocalOnly':
+    'Only local addresses were found. Both devices must be on the same network; otherwise a TURN server is likely needed (see config.js).',
+  'checks.conclNoSignaling':
+    'No pairing service could be reached from this device. Check the internet connection, then try again.',
+  'checks.conclUnknown': 'No usable connection types were found. Try another network.',
+  'checks.detail.reachable': 'Reachable',
+  'checks.detail.unreachable': 'Not reachable',
+  'checks.detail.blocked': 'Blocked or offline',
+  'checks.detail.timeout': 'Timed out',
+  'checks.detail.error': 'Connection error',
+  'checks.detail.none': 'No candidates gathered',
+  'checks.detail.bundleMissing': 'Not available in this browser',
+
+  /* ---- connection lost / reconnect ---- */
+  'conn.lostTitle': 'Connection lost',
+  'conn.lost': 'The connection to the other device was interrupted.',
+  'conn.reconnected': 'Reconnected',
+  'conn.reconnectFailed': 'Could not reconnect automatically.',
 
   /* ---- misc ---- */
   'common.close': 'Close',
@@ -244,11 +331,12 @@ const EN = {
   'common.hide': 'Hide',
   'common.unsupported': 'Not supported in this browser',
   'common.loading': 'Loading…',
+  'common.dismiss': 'Dismiss',
 };
 
 const ID = {
   'app.name': 'LinkDrop',
-  'app.tagline': 'Ponsel dan laptop, terhubung langsung',
+  'app.tagline': 'HP dan laptop, terhubung langsung',
 
   'nav.connect': 'Sambungkan',
   'nav.camera': 'Kamera',
@@ -273,21 +361,27 @@ const ID = {
   'fallback.detail':
     'Layanan pemasangan utama tidak dapat dijangkau, jadi LinkDrop beralih ke layanan cadangan publik. Pesan pemasangan tetap terenkripsi.',
 
-  'connect.title': 'Sambungkan ponsel',
-  'connect.subtitle': 'Di ponsel, buka halaman LinkDrop lalu masukkan kode ini.',
+  'connect.title': 'Sambungkan HP',
+  'connect.subtitle': 'Di HP, buka halaman LinkDrop lalu masukkan kode ini.',
   'connect.codeLabel': 'Kode pemasangan',
   'connect.copy': 'Salin kode',
   'connect.copied': 'Kode disalin',
   'connect.newCode': 'Buat kode baru',
-  'connect.qrHint': 'Pindai kode QR ini dengan kamera ponsel — halaman ponsel akan terbuka dengan kode terisi.',
-  'connect.qrAlt': 'Kode QR untuk membuka halaman ponsel dengan kode pemasangan',
-  'connect.openPhone': 'Buka halaman ponsel',
+  'connect.retry': 'Coba lagi',
+  'connect.qrHint': 'Pindai kode QR ini dengan kamera HP — halaman HP akan terbuka dengan kode terisi.',
+  'connect.qrAlt': 'Kode QR untuk membuka halaman HP dengan kode pemasangan',
+  'connect.openPhone': 'Buka halaman HP',
   'connect.expiresIn': 'Kode berlaku {time} lagi',
   'connect.expired': 'Kode ini sudah kedaluwarsa. Buat kode baru.',
-  'connect.waiting': 'Menunggu ponsel…',
-  'connect.step1': 'Buka kamera di ponsel lalu pindai kode QR, atau buka halaman ponsel dan ketik kodenya.',
-  'connect.step2': 'Ketuk Izinkan di ponsel saat peramban meminta akses kamera.',
-  'connect.step3': 'Cocokkan 4 angka di kedua layar, lalu setujui koneksi.',
+  'connect.waiting': 'Menunggu HP…',
+  'connect.step1': 'Pindai atau ketik kodenya',
+  'connect.step2': 'Izinkan akses kamera di HP',
+  'connect.step3': 'Cocokkan 4 angka',
+  'connect.connectedTitle': 'HP terhubung',
+  'connect.connectedSub': '{name} siap streaming dan berbagi berkas.',
+  'connect.openCamera': 'Buka kamera',
+  'connect.sendFiles': 'Kirim berkas',
+  'connect.detail.status': 'Status',
 
   'verify.allowTitle': 'Izinkan perangkat ini terhubung?',
   'verify.allowBody': '“{name}” ingin terhubung ke laptop ini.',
@@ -301,8 +395,8 @@ const ID = {
   'verify.trusted': 'Perangkat tepercaya — menyambung otomatis.',
 
   'camera.title': 'Kamera',
-  'camera.subtitle': 'Tampilan langsung dari ponsel yang terhubung.',
-  'camera.empty': 'Belum ada video. Sambungkan ponsel untuk melihat kameranya.',
+  'camera.subtitle': 'Tampilan langsung dari HP yang terhubung.',
+  'camera.empty': 'Belum ada video. Sambungkan HP untuk melihat kameranya.',
   'camera.snapshot': 'Tangkapan',
   'camera.record': 'Rekam',
   'camera.stopRecord': 'Hentikan rekaman',
@@ -324,9 +418,14 @@ const ID = {
   'camera.controls.frameRate': 'Laju bingkai',
   'camera.controls.torch': 'Lampu',
   'camera.controls.audio': 'Mikrofon',
-  'camera.controls.audioHint': 'Mengirim mikrofon ponsel ke laptop',
-  'camera.controls.unsupported': 'Tidak tersedia di ponsel ini',
+  'camera.controls.audioHint': 'Mengirim mikrofon HP ke laptop',
+  'camera.controls.unsupported': 'Tidak tersedia di HP ini',
   'camera.snapshotSaved': 'Tangkapan disimpan',
+  'camera.permission.title': 'Izinkan akses kamera',
+  'camera.permission.hint':
+    'Buka ikon kamera di bilah alamat peramban, pilih “Izinkan”, lalu coba lagi.',
+  'camera.nodevice.title': 'Kamera tidak ditemukan',
+  'camera.nodevice.hint': 'Sambungkan kamera, atau buka LinkDrop di perangkat yang memilikinya.',
 
   'phone.connectTitle': 'Sambungkan ke laptop',
   'phone.connectSubtitle': 'Masukkan 8 angka yang tampil di laptop.',
@@ -334,6 +433,7 @@ const ID = {
   'phone.connect': 'Sambungkan',
   'phone.disconnect': 'Putuskan',
   'phone.camTitle': 'Kamera',
+  'phone.camera': 'Kamera',
   'phone.streaming': 'Mengalir ke {name}',
   'phone.notStreaming': 'Kamera berhenti',
   'phone.start': 'Nyalakan kamera',
@@ -351,7 +451,7 @@ const ID = {
   'files.emptyPhone': 'Belum ada berkas. Ketuk “Kirim berkas” untuk memilih.',
   'files.dropHere': 'Letakkan berkas di sini',
   'files.note':
-    'Peramban tidak dapat menelusuri seluruh penyimpanan ponsel. Anda memilih berkas yang ingin dikirim.',
+    'Peramban tidak dapat menelusuri seluruh penyimpanan HP. Anda memilih berkas yang ingin dikirim.',
   'files.chooseFolder': 'Pilih folder simpan',
   'files.folderSet': 'Berkas yang diterima disimpan ke “{name}”.',
   'files.folderCleared': 'Berkas yang diterima akan masuk ke unduhan peramban.',
@@ -368,7 +468,7 @@ const ID = {
   'files.retry': 'Coba lagi',
   'files.speed': 'Kecepatan',
   'files.eta': 'Sisa waktu',
-  'files.dir.toPhone': 'Ke ponsel',
+  'files.dir.toPhone': 'Ke HP',
   'files.dir.toLaptop': 'Ke laptop',
   'files.savedTo': 'Tersimpan “{name}”',
   'files.received': 'Diterima “{name}”',
@@ -390,15 +490,15 @@ const ID = {
   'settings.theme.light': 'Terang',
   'settings.theme.dark': 'Gelap',
   'settings.defaultCamera': 'Kamera bawaan',
-  'settings.defaultCamera.help': 'Kamera yang dibuka ponsel secara bawaan.',
+  'settings.defaultCamera.help': 'Kamera yang dibuka HP secara bawaan.',
   'settings.resolution': 'Resolusi bawaan',
   'settings.resolution.help': 'Resolusi lebih tinggi memakai lebih banyak data.',
   'settings.frameRate': 'Laju bingkai bawaan',
-  'settings.frameRate.help': '60 fps hanya berfungsi di ponsel yang mendukung.',
+  'settings.frameRate.help': '60 fps hanya berfungsi di HP yang mendukung.',
   'settings.audio': 'Mikrofon',
-  'settings.audio.help': 'Kirim mikrofon ponsel secara bawaan. Bawaan mati.',
+  'settings.audio.help': 'Kirim mikrofon HP secara bawaan. Bawaan mati.',
   'settings.keepAwake': 'Jaga layar tetap menyala',
-  'settings.keepAwake.help': 'Cegah layar ponsel tidur selama mengalir.',
+  'settings.keepAwake.help': 'Cegah layar HP tidur selama mengalir.',
   'settings.rememberDevice': 'Ingat perangkat ini',
   'settings.rememberDevice.help':
     'Lewati konfirmasi di lain waktu, tetapi hanya bila 4 angka cocok dengan perangkat tepercaya.',
@@ -417,10 +517,10 @@ const ID = {
   'help.subtitle': 'Jawaban singkat untuk pertanyaan umum.',
   'help.pairing.title': 'Cara pemasangan',
   'help.pairing.body':
-    'Laptop menampilkan kode 8 angka dan kode QR. Pindai kode QR dengan kamera ponsel, atau buka halaman ponsel dan ketik kodenya. Kode hanya berlaku 10 menit dan hanya satu ponsel yang dapat memasang.',
-  'help.backup.title': 'Layanan pemasangan cadangan',
+    'Laptop menampilkan kode 8 angka dan kode QR, lalu memandu lewat tiga langkah: pindai atau ketik kodenya, izinkan akses kamera di HP, dan samakan 4 angkanya. Setelah tersambung, laptop menampilkan nama perangkat, apakah sambungan lokal atau lewat relay, dan latensi saat ini. Kode hanya berlaku 10 menit dan hanya satu HP yang dapat memasang.',
+  'help.backup.title': 'Pemasangan cadangan (eksperimental)',
   'help.backup.body':
-    'Pesan pemasangan biasanya lewat PeerJS Cloud. Bila layanan itu tidak dapat dijangkau, LinkDrop otomatis beralih ke broker MQTT publik dan menampilkan pemberitahuan kecil. Pesan pemasangan tetap terenkripsi, dan broker hanya melihat hash kode.',
+    'LinkDrop memasang melalui PeerJS Cloud. Cadangan opsional yang beralih ke broker MQTT publik bersifat eksperimental dan nonaktif secara bawaan; setel ENABLE_BACKUP_SIGNALING ke true di config.js untuk mengaktifkannya. Selama nonaktif, tidak ada kode MQTT yang dimuat dan aplikasi tidak pernah menyebut layanan cadangan.',
   'help.verify.title': 'Angka verifikasi',
   'help.verify.body':
     'Setelah koneksi langsung aktif, kedua layar menampilkan 4 angka yang sama, berasal dari sertifikat kedua perangkat. Bila angkanya berbeda, mungkin ada yang menyadap koneksi — tekan Tolak dan coba lagi.',
@@ -434,7 +534,7 @@ const ID = {
   'help.troubleshooting.camera':
     'Kamera tidak menyala: izinkan akses kamera untuk situs ini, tutup aplikasi lain yang memakai kamera, lalu muat ulang halaman.',
   'help.troubleshooting.turn':
-    'Jaringan berbeda: bila perangkat berada di jaringan berbeda (misalnya ponsel memakai data seluler), koneksi mungkin perlu server TURN. Tambahkan di config.js.',
+    'Jaringan berbeda: bila perangkat berada di jaringan berbeda (misalnya HP memakai data seluler), koneksi mungkin perlu server TURN. Tambahkan di config.js.',
   'help.troubleshooting.firewall':
     'Firewall: jaringan kantor dan VPN sering memblokir WebRTC. Coba USB tethering atau jaringan lain.',
   'help.troubleshooting.files':
@@ -450,17 +550,87 @@ const ID = {
   'errors.codeExpired': 'Kode ini sudah kedaluwarsa. Buat kode baru.',
   'errors.signalingUnreachable': 'Layanan pemasangan tidak dapat dijangkau.',
   'errors.signalingTimeout': 'Layanan pemasangan tidak merespons tepat waktu.',
+  'errors.signalingHint': 'Pastikan Anda terhubung internet, lalu coba lagi.',
   'errors.allServicesUnreachable':
-    'Kedua layanan pemasangan tidak dapat dijangkau. Periksa koneksi internet lalu coba lagi.',
+    'Layanan pemasangan tidak dapat dijangkau. Periksa koneksi internet lalu coba lagi.',
   'errors.browserIncompatible':
     'Peramban ini tidak mendukung fitur yang dibutuhkan LinkDrop. Coba Chrome, Edge, Firefox atau Safari terbaru.',
   'errors.cameraDenied':
     'Izin kamera ditolak. Izinkan akses kamera untuk situs ini, lalu coba lagi.',
   'errors.noCamera': 'Kamera tidak ditemukan di perangkat ini.',
   'errors.cameraFailed': 'Kamera tidak dapat dinyalakan.',
+  'errors.micDenied':
+    'Izin mikrofon ditolak. Izinkan akses mikrofon untuk situs ini, lalu coba lagi.',
   'errors.connectionFailed': 'Koneksi gagal. Silakan coba lagi.',
   'errors.channelClosed': 'Koneksi terputus saat transfer berlangsung.',
   'errors.generic': 'Terjadi kesalahan.',
+  'errors.iceFailed':
+    'Kedua perangkat tidak dapat saling terhubung secara langsung. Ini sering terjadi bila perangkat berada di jaringan berbeda atau salah satunya memakai data seluler — biasanya perlu server TURN. Sambungkan kedua perangkat ke Wi-Fi yang sama, atau tambahkan server TURN di config.js.',
+
+  'phone.landingTitle': 'Sambungkan ke laptop',
+  'phone.landingSubtitle': 'Ketik kode 8 angka, atau pindai kode QR di laptop.',
+  'phone.enterCode': 'Kode pemasangan',
+  'phone.codeHint': '8 angka, tampil di laptop',
+  'phone.scanQr': 'Pindai kode QR',
+  'phone.connectingTo': 'Menyambungkan ke laptop…',
+  'phone.connectingHint': 'Menyiapkan koneksi langsung. Biasanya hanya butuh beberapa detik.',
+  'phone.scanTitle': 'Pindai kode QR',
+  'phone.scanHint': 'Arahkan kamera ke kode QR di laptop.',
+  'phone.scanStarting': 'Menyalakan kamera…',
+  'phone.scanInvalid': 'Kode QR itu bukan kode LinkDrop. Coba lagi.',
+  'phone.scanUnsupported': 'Peramban ini tidak dapat memindai kode QR. Ketik kodenya saja.',
+  'phone.scanDenied': 'Akses kamera ditolak. Izinkan untuk memindai, atau ketik kodenya.',
+  'phone.back': 'Kembali',
+  'phone.tryAgain': 'Coba lagi',
+  'phone.switchBackup': 'Layanan pemasangan utama lambat — memakai layanan cadangan.',
+  'phone.expired': 'Kode ini sudah kedaluwarsa. Minta kode baru dari laptop.',
+
+  'role.phoneOnDesktop.title': 'Halaman ini untuk HP Anda',
+  'role.phoneOnDesktop.body': 'Buka LinkDrop di komputer Anda lalu pindai kode QR dengan HP.',
+
+  'verify.acceptTitle': 'Izinkan perangkat ini?',
+  'verify.device': 'Perangkat',
+  'verify.hint': 'Cocokkan angka ini dengan yang ada di HP, lalu setujui.',
+  'verify.accept': 'Setujui',
+  'verify.reject': 'Tolak',
+
+  'help.check.title': 'Pemeriksaan koneksi',
+  'help.check.body':
+    'Jalankan uji cepat untuk melihat jenis koneksi yang mungkin berhasil dari perangkat ini.',
+  'checks.intro': 'Jalankan uji cepat layanan pemasangan, STUN, dan jenis koneksi yang tersedia dari perangkat ini.',
+  'checks.run': 'Jalankan pemeriksaan',
+  'checks.runAgain': 'Jalankan lagi',
+  'checks.running': 'Memeriksa…',
+  'checks.testing': 'Menguji…',
+  'checks.notTested': 'Belum diuji',
+  'checks.peerjs': 'Layanan pemasangan ({host})',
+  'checks.broker': 'Layanan cadangan ({host})',
+  'checks.ice': 'Jenis koneksi (ICE)',
+  'checks.iceGathered': 'Berhasil dikumpulkan',
+  'checks.candidate.host': 'Langsung',
+  'checks.candidate.srflx': 'Server reflexive',
+  'checks.candidate.relay': 'Relay (TURN)',
+  'checks.conclTurn':
+    'Bagus — relay TURN tersedia, jadi koneksi antar jaringan berbeda dan data seluler seharusnya berhasil.',
+  'checks.conclStun':
+    'Bagus — perangkat di Wi-Fi yang sama seharusnya terhubung. Perangkat di jaringan berbeda, atau salah satunya memakai data seluler, mungkin perlu server TURN (lihat config.js).',
+  'checks.conclLocalOnly':
+    'Hanya alamat lokal yang ditemukan. Kedua perangkat harus berada di jaringan yang sama; jika tidak, kemungkinan perlu server TURN (lihat config.js).',
+  'checks.conclNoSignaling':
+    'Tidak ada layanan pemasangan yang dapat dijangkau dari perangkat ini. Periksa koneksi internet lalu coba lagi.',
+  'checks.conclUnknown': 'Tidak ada jenis koneksi yang dapat dipakai. Coba jaringan lain.',
+  'checks.detail.reachable': 'Dapat dijangkau',
+  'checks.detail.unreachable': 'Tidak dapat dijangkau',
+  'checks.detail.blocked': 'Diblokir atau offline',
+  'checks.detail.timeout': 'Waktu habis',
+  'checks.detail.error': 'Kesalahan koneksi',
+  'checks.detail.none': 'Tidak ada kandidat',
+  'checks.detail.bundleMissing': 'Tidak tersedia di peramban ini',
+
+  'conn.lostTitle': 'Koneksi terputus',
+  'conn.lost': 'Koneksi ke perangkat lain terputus.',
+  'conn.reconnected': 'Tersambung kembali',
+  'conn.reconnectFailed': 'Tidak dapat menyambung ulang secara otomatis.',
 
   'common.close': 'Tutup',
   'common.cancel': 'Batal',
@@ -471,6 +641,7 @@ const ID = {
   'common.hide': 'Sembunyikan',
   'common.unsupported': 'Tidak didukung di peramban ini',
   'common.loading': 'Memuat…',
+  'common.dismiss': 'Tutup',
 };
 
 const DICTIONARIES = { en: EN, id: ID };

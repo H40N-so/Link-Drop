@@ -384,7 +384,7 @@ export function mountSettings(app) {
               }, t('settings.saveToDisk')),
             );
             if (app.canPickFolder()) {
-              const button = el('button', 'btn btn-ghost', t('files.chooseFolder'));
+              const button = el('button', 'btn btn--ghost', t('files.chooseFolder'));
               button.type = 'button';
               button.addEventListener('click', () => app.chooseSaveFolder());
               wrap.appendChild(button);
@@ -419,7 +419,7 @@ export function mountSettings(app) {
           'settings.reset',
           'settings.reset.help',
           (() => {
-            const button = el('button', 'btn btn-danger', t('settings.resetButton'));
+            const button = el('button', 'btn btn--danger', t('settings.resetButton'));
             button.type = 'button';
             button.addEventListener('click', () => {
               settings.reset();

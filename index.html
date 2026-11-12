@@ -13,15 +13,21 @@
     <link rel="stylesheet" href="css/app.css" />
   </head>
   <body data-role="laptop">
+    <!-- Soft ambient background: a few very blurred colour orbs and a faint
+         grain. Purely decorative, so it is hidden from assistive tech. -->
+    <div class="ambient" aria-hidden="true">
+      <span class="orb orb--1"></span>
+      <span class="orb orb--2"></span>
+      <span class="orb orb--3"></span>
+      <span class="grain"></span>
+    </div>
+
     <div class="app-shell">
       <!-- Sidebar ------------------------------------------------------ -->
       <aside class="sidebar">
         <div class="brand">
           <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10 13a5 5 0 0 0 7.07 0l1.42-1.42a5 5 0 0 0-7.07-7.07L10 5.93" />
-              <path d="M14 11a5 5 0 0 0-7.07 0l-1.42 1.42a5 5 0 0 0 7.07 7.07L14 18.07" />
-            </svg>
+            <svg class="icon"><use href="#i-link"></use></svg>
           </span>
           <span>
             <span class="brand-name">LinkDrop</span>
@@ -30,39 +36,25 @@
         </div>
 
         <nav class="nav" aria-label="Main navigation">
+          <span class="nav-indicator" aria-hidden="true"></span>
           <button type="button" class="nav-item" data-nav="connect">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M10 13a5 5 0 0 0 7.07 0l1.42-1.42a5 5 0 0 0-7.07-7.07L10 5.93" />
-              <path d="M14 11a5 5 0 0 0-7.07 0l-1.42 1.42a5 5 0 0 0 7.07 7.07L14 18.07" />
-            </svg>
+            <svg class="icon"><use href="#i-link"></use></svg>
             <span data-i18n="nav.connect"></span>
           </button>
           <button type="button" class="nav-item" data-nav="camera">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M4 8h2.4l1.5-2h8.2l1.5 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
-              <circle cx="12" cy="13" r="3.2" />
-            </svg>
+            <svg class="icon"><use href="#i-camera"></use></svg>
             <span data-i18n="nav.camera"></span>
           </button>
           <button type="button" class="nav-item" data-nav="files">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M4 7a1 1 0 0 1 1-1h4.3l1.8 2H19a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" />
-            </svg>
+            <svg class="icon"><use href="#i-folder"></use></svg>
             <span data-i18n="nav.files"></span>
           </button>
           <button type="button" class="nav-item" data-nav="settings">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 2.6v2.6M12 18.8v2.6M2.6 12h2.6M18.8 12h2.6M5.4 5.4l1.9 1.9M16.7 16.7l1.9 1.9M18.6 5.4l-1.9 1.9M7.3 16.7l-1.9 1.9" />
-            </svg>
+            <svg class="icon"><use href="#i-settings"></use></svg>
             <span data-i18n="nav.settings"></span>
           </button>
           <button type="button" class="nav-item" data-nav="help">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M9.6 9.3a2.4 2.4 0 1 1 3.4 2.2c-.7.3-1 .8-1 1.5v.3" />
-              <circle cx="12" cy="16.7" r="0.7" fill="currentColor" stroke="none" />
-            </svg>
+            <svg class="icon"><use href="#i-help"></use></svg>
             <span data-i18n="nav.help"></span>
           </button>
         </nav>
@@ -71,283 +63,355 @@
       <!-- Main column -------------------------------------------------- -->
       <div class="main">
         <header class="topbar">
-          <span class="brand-name">LinkDrop</span>
+          <span class="topbar-title brand-name">LinkDrop</span>
           <span class="topbar-spacer"></span>
           <span id="device-name" class="device-name" hidden></span>
           <span id="status-pill" class="status-pill" data-state="disconnected">
+            <span class="status-dot" aria-hidden="true"></span>
             <span data-status-text data-i18n="status.disconnected"></span>
           </span>
-          <button type="button" id="disconnect-btn" class="btn btn-ghost btn-small" hidden data-i18n="conn.disconnect"></button>
+          <button type="button" id="disconnect-btn" class="btn btn--ghost btn--small" hidden data-i18n="conn.disconnect"></button>
         </header>
 
         <div class="content">
           <div id="notice" class="notice" role="status" hidden>
             <span class="notice-text" data-notice-text></span>
-            <button type="button" class="btn btn-ghost btn-small" data-notice-close data-i18n="common.close"></button>
+            <button type="button" class="btn btn--ghost btn--small" data-notice-close data-i18n="common.close"></button>
           </div>
 
-          <!-- Connect ------------------------------------------------ -->
-          <section class="screen" data-screen="connect" aria-labelledby="connect-title">
-            <div class="page-head">
-              <h1 class="page-title" id="connect-title" data-i18n="connect.title"></h1>
-              <p class="page-subtitle" data-i18n="connect.subtitle"></p>
-            </div>
+          <div data-screens>
+            <!-- Connect ------------------------------------------------ -->
+            <section class="screen" data-screen="connect" aria-labelledby="connect-title">
+              <div class="connect-hero">
+                <h1 class="page-title" id="connect-title" data-i18n="connect.title"></h1>
+                <p class="page-subtitle" data-i18n="connect.subtitle"></p>
+              </div>
 
-            <div class="connect-grid">
-              <div class="card">
-                <div class="card-body">
-                  <span class="muted small" data-i18n="connect.codeLabel"></span>
-                  <div class="code-display" id="code-display">---- ----</div>
+              <!-- Pairing: shown while no phone is connected yet. -->
+              <div class="connect-grid" id="connect-pairing" data-stagger>
+                <div class="card card--pad card--glass">
+                  <span class="label" data-i18n="connect.codeLabel"></span>
+
+                  <div class="code-display" id="code-display" aria-live="polite">---- ----</div>
+
+                  <div class="code-countdown" aria-hidden="true">
+                    <span class="code-countdown__fill" id="code-progress"></span>
+                  </div>
                   <div class="code-expiry" id="code-expiry"></div>
 
+                  <div class="waiting" data-connect-waiting>
+                    <span class="waiting-ring" aria-hidden="true"></span>
+                    <span data-i18n="connect.waiting"></span>
+                  </div>
+
+                  <div id="connect-status" class="inline-status" hidden>
+                    <p class="inline-status-text" data-error-text></p>
+                    <p class="inline-status-hint muted small" data-error-hint hidden></p>
+                    <button
+                      type="button"
+                      class="btn btn--small"
+                      data-action="retry-signaling"
+                      data-i18n="connect.retry"
+                      hidden
+                    ></button>
+                  </div>
+                  <p class="muted small connect-detail" data-connect-detail></p>
+
                   <div class="code-actions">
-                    <button type="button" class="btn btn-primary" data-action="copy-code">
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <rect x="9" y="9" width="11" height="11" rx="2" />
-                        <path d="M5 15V5a2 2 0 0 1 2-2h8" />
-                      </svg>
+                    <button type="button" class="btn btn--primary" data-action="copy-code">
+                      <svg class="icon icon--sm"><use href="#i-copy"></use></svg>
                       <span data-i18n="connect.copy"></span>
                     </button>
-                    <button type="button" class="btn" data-action="new-code" data-i18n="connect.newCode"></button>
-                    <a class="btn btn-ghost" id="open-phone-link" href="phone.html" target="_blank" rel="noopener" data-i18n="connect.openPhone"></a>
+                    <button type="button" class="btn" data-action="new-code">
+                      <svg class="icon icon--sm"><use href="#i-refresh"></use></svg>
+                      <span data-i18n="connect.newCode"></span>
+                    </button>
                   </div>
 
-                  <div id="connect-status" class="inline-status" hidden></div>
-
-                  <div class="conn-summary">
-                    <div class="conn-metric">
-                      <span class="conn-metric-label" data-i18n="camera.stat.connection"></span>
-                      <span class="conn-metric-value" data-conn-type>—</span>
-                    </div>
-                    <div class="conn-metric">
-                      <span class="conn-metric-label" data-i18n="conn.latency"></span>
-                      <span class="conn-metric-value" data-conn-latency>—</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="card">
-                <div class="card-body">
-                  <div class="qr-box" id="qr-container"></div>
-                  <p class="muted small" style="margin-top: 12px" data-i18n="connect.qrHint"></p>
-                  <ol class="steps" style="margin-top: 16px">
-                    <li data-i18n="connect.step1"></li>
-                    <li data-i18n="connect.step2"></li>
-                    <li data-i18n="connect.step3"></li>
+                  <ol class="stepper" data-stepper>
+                    <li class="step" data-step="1">
+                      <span class="step-marker">
+                        <svg class="icon icon--sm"><use href="#i-qr"></use></svg>
+                      </span>
+                      <span class="step-label" data-i18n="connect.step1"></span>
+                    </li>
+                    <li class="step" data-step="2">
+                      <span class="step-marker">
+                        <svg class="icon icon--sm"><use href="#i-camera"></use></svg>
+                      </span>
+                      <span class="step-label" data-i18n="connect.step2"></span>
+                    </li>
+                    <li class="step" data-step="3">
+                      <span class="step-marker">
+                        <svg class="icon icon--sm"><use href="#i-shield-check"></use></svg>
+                      </span>
+                      <span class="step-label" data-i18n="connect.step3"></span>
+                    </li>
                   </ol>
                 </div>
-              </div>
-            </div>
-          </section>
 
-          <!-- Camera ------------------------------------------------- -->
-          <section class="screen" data-screen="camera" aria-labelledby="camera-title">
-            <div class="page-head">
-              <h1 class="page-title" id="camera-title" data-i18n="camera.title"></h1>
-              <p class="page-subtitle" data-i18n="camera.subtitle"></p>
-            </div>
-
-            <div class="camera-stage" data-camera-stage>
-              <video data-laptop-video autoplay playsinline muted></video>
-              <div class="camera-overlay" data-camera-empty>
-                <div>
-                  <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M4 8h2.4l1.5-2h8.2l1.5 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
-                    <circle cx="12" cy="13" r="3.2" />
-                  </svg>
-                  <p style="margin-top: 10px" data-i18n="camera.empty"></p>
+                <div class="card card--pad card--qr">
+                  <div class="qr-frame">
+                    <span class="qr-corner qr-corner--tl" aria-hidden="true"></span>
+                    <span class="qr-corner qr-corner--tr" aria-hidden="true"></span>
+                    <span class="qr-corner qr-corner--bl" aria-hidden="true"></span>
+                    <span class="qr-corner qr-corner--br" aria-hidden="true"></span>
+                    <div class="qr-box" id="qr-container"></div>
+                  </div>
+                  <p class="muted small" data-i18n="connect.qrHint"></p>
                 </div>
               </div>
-              <div class="record-badge" data-record-badge hidden></div>
-            </div>
 
-            <div class="camera-toolbar">
-              <button type="button" class="btn" data-action="snapshot">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M4 8h2.4l1.5-2h8.2l1.5 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
-                  <circle cx="12" cy="13" r="3.2" />
-                </svg>
-                <span data-i18n="camera.snapshot"></span>
-              </button>
-              <button type="button" class="btn" data-action="record" data-i18n="camera.record"></button>
-              <button type="button" class="btn" data-action="mirror" aria-pressed="false">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M12 4v16" />
-                  <path d="M8 7 4 12l4 5" />
-                  <path d="M16 7l4 5-4 5" />
-                </svg>
-                <span data-i18n="camera.mirror"></span>
-              </button>
-              <button type="button" class="btn" data-action="fullscreen" data-i18n="camera.fullscreen"></button>
-              <button type="button" class="btn" data-action="pip" data-i18n="camera.pip"></button>
-            </div>
+              <!-- Connected: replaces the pairing card once a phone is up. -->
+              <div class="connected-card card--glass" id="connect-connected" hidden>
+                <span class="connected-check" aria-hidden="true">
+                  <svg class="icon icon--xl"><use href="#i-check"></use></svg>
+                </span>
+                <h2 class="connected-title" data-i18n="connect.connectedTitle"></h2>
+                <p class="connected-sub" data-connected-device></p>
 
-            <div class="card" style="margin-top: 16px">
-              <h2 class="card-title" data-i18n="camera.controls"></h2>
-              <div class="card-body controls-grid">
-                <div class="control-row" data-control-row="camera">
-                  <span class="control-label" data-i18n="camera.controls.camera"></span>
-                  <div class="segmented" data-control="camera" role="group" aria-label="Camera">
-                    <button type="button" class="seg" data-value="front" data-i18n="camera.controls.front"></button>
-                    <button type="button" class="seg" data-value="back" data-i18n="camera.controls.back"></button>
+                <dl class="details">
+                  <div class="detail">
+                    <dt data-i18n="conn.device"></dt>
+                    <dd data-connected-name>—</dd>
                   </div>
-                </div>
+                  <div class="detail">
+                    <dt data-i18n="camera.stat.connection"></dt>
+                    <dd data-conn-type>—</dd>
+                  </div>
+                  <div class="detail">
+                    <dt data-i18n="conn.latency"></dt>
+                    <dd data-conn-latency>—</dd>
+                  </div>
+                  <div class="detail">
+                    <dt data-i18n="connect.detail.status"></dt>
+                    <dd data-i18n="status.connected"></dd>
+                  </div>
+                </dl>
 
-                <div class="control-row">
-                  <span class="control-label" data-i18n="camera.controls.resolution"></span>
-                  <div class="segmented" data-control="resolution" role="group" aria-label="Resolution">
-                    <button type="button" class="seg" data-value="360p">360p</button>
-                    <button type="button" class="seg" data-value="720p">720p</button>
-                    <button type="button" class="seg" data-value="1080p">1080p</button>
-                  </div>
-                </div>
-
-                <div class="control-row">
-                  <span class="control-label" data-i18n="camera.controls.frameRate"></span>
-                  <div class="segmented" data-control="frameRate" role="group" aria-label="Frame rate">
-                    <button type="button" class="seg" data-value="15">15</button>
-                    <button type="button" class="seg" data-value="30">30</button>
-                    <button type="button" class="seg" data-value="60" data-fps="60">60</button>
-                  </div>
-                </div>
-
-                <div class="control-row" data-control-row="torch" hidden>
-                  <span class="control-label" data-i18n="camera.controls.torch"></span>
-                  <button type="button" class="btn btn-small" data-action="torch" aria-pressed="false" data-i18n="camera.controls.torch"></button>
-                </div>
-
-                <div class="control-row">
-                  <span class="control-label" data-i18n="camera.controls.audio"></span>
-                  <button type="button" class="btn btn-small" data-action="audio" aria-pressed="false" data-i18n="camera.controls.audio"></button>
-                  <span class="muted small" data-i18n="camera.controls.audioHint"></span>
-                </div>
-
-                <div class="control-row">
-                  <button type="button" class="btn btn-ghost btn-small" data-stats-toggle aria-expanded="false" data-i18n="camera.stats"></button>
-                </div>
-
-                <div class="stats-panel" data-stats-panel hidden>
-                  <div class="stat">
-                    <span class="stat-label" data-i18n="camera.stat.resolution"></span>
-                    <span class="stat-value" data-stat="resolution">—</span>
-                  </div>
-                  <div class="stat">
-                    <span class="stat-label" data-i18n="camera.stat.fps"></span>
-                    <span class="stat-value" data-stat="fps">—</span>
-                  </div>
-                  <div class="stat">
-                    <span class="stat-label" data-i18n="camera.stat.bitrate"></span>
-                    <span class="stat-value" data-stat="bitrate">—</span>
-                  </div>
-                  <div class="stat">
-                    <span class="stat-label" data-i18n="camera.stat.connection"></span>
-                    <span class="stat-value" data-conn-type>—</span>
-                  </div>
-                  <div class="stat">
-                    <span class="stat-label" data-i18n="camera.stat.latency"></span>
-                    <span class="stat-value" data-conn-latency>—</span>
-                  </div>
+                <div class="connected-actions">
+                  <button type="button" class="btn btn--primary" data-action="open-camera">
+                    <svg class="icon icon--sm"><use href="#i-camera"></use></svg>
+                    <span data-i18n="connect.openCamera"></span>
+                  </button>
+                  <button type="button" class="btn" data-action="open-files">
+                    <svg class="icon icon--sm"><use href="#i-folder"></use></svg>
+                    <span data-i18n="connect.sendFiles"></span>
+                  </button>
+                  <button type="button" class="btn btn--danger" data-disconnect data-i18n="conn.disconnect"></button>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          <!-- Files -------------------------------------------------- -->
-          <section class="screen" data-screen="files" aria-labelledby="files-title">
-            <div class="page-head">
-              <h1 class="page-title" id="files-title" data-i18n="files.title"></h1>
-              <p class="page-subtitle" data-i18n="files.subtitle"></p>
-            </div>
-
-            <div class="dropzone" data-dropzone>
-              <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 16V5" />
-                <path d="M7.5 9.5 12 5l4.5 4.5" />
-                <path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" />
-              </svg>
-              <span data-i18n="files.dropHere"></span>
-              <button type="button" class="btn btn-primary" data-files-send data-i18n="files.send"></button>
-            </div>
-            <input type="file" data-files-input multiple hidden />
-            <p class="muted small" style="margin-top: 10px" data-i18n="files.note"></p>
-
-            <div class="files-head">
-              <h2 class="card-title" style="padding: 0" data-i18n="files.session"></h2>
-              <button type="button" class="btn btn-ghost btn-small" data-files-clear data-i18n="files.clear"></button>
-            </div>
-
-            <div class="empty-state" data-files-empty>
-              <p data-i18n="files.empty"></p>
-            </div>
-            <ul class="transfer-list" data-transfer-list></ul>
-          </section>
-
-          <!-- Settings ----------------------------------------------- -->
-          <section class="screen" data-screen="settings" aria-labelledby="settings-title">
-            <div class="page-head">
-              <h1 class="page-title" id="settings-title" data-i18n="settings.title"></h1>
-              <p class="page-subtitle" data-i18n="settings.subtitle"></p>
-            </div>
-            <div data-settings-host></div>
-          </section>
-
-          <!-- Help --------------------------------------------------- -->
-          <section class="screen" data-screen="help" aria-labelledby="help-title">
-            <div class="page-head">
-              <h1 class="page-title" id="help-title" data-i18n="help.title"></h1>
-              <p class="page-subtitle" data-i18n="help.subtitle"></p>
-            </div>
-
-            <div class="card">
-              <div class="card-body">
-                <div class="help-section">
-                  <h2 data-i18n="help.pairing.title"></h2>
-                  <p data-i18n="help.pairing.body"></p>
-                </div>
-                <div class="help-section">
-                  <h2 data-i18n="help.backup.title"></h2>
-                  <p data-i18n="help.backup.body"></p>
-                </div>
-                <div class="help-section">
-                  <h2 data-i18n="help.verify.title"></h2>
-                  <p data-i18n="help.verify.body"></p>
-                </div>
-                <div class="help-section">
-                  <h2 data-i18n="help.usb.title"></h2>
-                  <p data-i18n="help.usb.body"></p>
-                </div>
-                <div class="help-section">
-                  <h2 data-i18n="help.wifi.title"></h2>
-                  <p data-i18n="help.wifi.body"></p>
-                </div>
-                <div class="help-section">
-                  <h2 data-i18n="help.troubleshooting.title"></h2>
-                  <ul class="steps">
-                    <li data-i18n="help.troubleshooting.camera"></li>
-                    <li data-i18n="help.troubleshooting.turn"></li>
-                    <li data-i18n="help.troubleshooting.firewall"></li>
-                    <li data-i18n="help.troubleshooting.files"></li>
-                  </ul>
-                </div>
-                <div class="help-section">
-                  <h2 data-i18n="help.privacy.title"></h2>
-                  <p data-i18n="help.privacy.body"></p>
-                </div>
+            <!-- Camera ------------------------------------------------- -->
+            <section class="screen" data-screen="camera" aria-labelledby="camera-title">
+              <div class="page-head">
+                <h1 class="page-title" id="camera-title" data-i18n="camera.title"></h1>
+                <p class="page-subtitle" data-i18n="camera.subtitle"></p>
               </div>
-            </div>
-          </section>
+
+              <div class="camera-stage" data-camera-stage>
+                <video data-laptop-video autoplay playsinline muted></video>
+                <div class="camera-overlay" data-camera-empty>
+                  <div>
+                    <svg class="icon icon--xl"><use href="#i-camera"></use></svg>
+                    <p class="muted" data-i18n="camera.empty"></p>
+                  </div>
+                </div>
+                <div class="record-badge" data-record-badge hidden></div>
+              </div>
+
+              <div class="camera-toolbar">
+                <button type="button" class="btn" data-action="snapshot">
+                  <svg class="icon icon--sm"><use href="#i-snapshot"></use></svg>
+                  <span data-i18n="camera.snapshot"></span>
+                </button>
+                <button type="button" class="btn" data-action="record">
+                  <svg class="icon icon--sm"><use href="#i-record"></use></svg>
+                  <span data-i18n="camera.record"></span>
+                </button>
+                <button type="button" class="btn" data-action="mirror" aria-pressed="false">
+                  <svg class="icon icon--sm"><use href="#i-mirror"></use></svg>
+                  <span data-i18n="camera.mirror"></span>
+                </button>
+                <button type="button" class="btn" data-action="fullscreen">
+                  <svg class="icon icon--sm"><use href="#i-fullscreen"></use></svg>
+                  <span data-i18n="camera.fullscreen"></span>
+                </button>
+                <button type="button" class="btn" data-action="pip">
+                  <svg class="icon icon--sm"><use href="#i-pip"></use></svg>
+                  <span data-i18n="camera.pip"></span>
+                </button>
+              </div>
+
+              <section class="card">
+                <h2 class="card-title" data-i18n="camera.controls"></h2>
+                <div class="card-body controls-grid">
+                  <div class="control-row" data-control-row="camera">
+                    <span class="control-label" data-i18n="camera.controls.camera"></span>
+                    <div class="segmented" data-control="camera" role="group" aria-label="Camera">
+                      <button type="button" class="seg" data-value="front" data-i18n="camera.controls.front"></button>
+                      <button type="button" class="seg" data-value="back" data-i18n="camera.controls.back"></button>
+                    </div>
+                  </div>
+
+                  <div class="control-row">
+                    <span class="control-label" data-i18n="camera.controls.resolution"></span>
+                    <div class="segmented" data-control="resolution" role="group" aria-label="Resolution">
+                      <button type="button" class="seg" data-value="360p">360p</button>
+                      <button type="button" class="seg" data-value="720p">720p</button>
+                      <button type="button" class="seg" data-value="1080p">1080p</button>
+                    </div>
+                  </div>
+
+                  <div class="control-row">
+                    <span class="control-label" data-i18n="camera.controls.frameRate"></span>
+                    <div class="segmented" data-control="frameRate" role="group" aria-label="Frame rate">
+                      <button type="button" class="seg" data-value="15">15</button>
+                      <button type="button" class="seg" data-value="30">30</button>
+                      <button type="button" class="seg" data-value="60" data-fps="60">60</button>
+                    </div>
+                  </div>
+
+                  <div class="control-row" data-control-row="torch" hidden>
+                    <span class="control-label" data-i18n="camera.controls.torch"></span>
+                    <button type="button" class="btn btn--small" data-action="torch" aria-pressed="false" data-i18n="camera.controls.torch"></button>
+                  </div>
+
+                  <div class="control-row">
+                    <span class="control-label" data-i18n="camera.controls.audio"></span>
+                    <button type="button" class="btn btn--small" data-action="audio" aria-pressed="false" data-i18n="camera.controls.audio"></button>
+                    <span class="muted small" data-i18n="camera.controls.audioHint"></span>
+                  </div>
+
+                  <div class="control-row">
+                    <button type="button" class="btn btn--ghost btn--small" data-stats-toggle aria-expanded="false" data-i18n="camera.stats"></button>
+                  </div>
+
+                  <div class="stats-panel" data-stats-panel hidden>
+                    <div class="stat">
+                      <span class="stat-label" data-i18n="camera.stat.resolution"></span>
+                      <span class="stat-value" data-stat="resolution">—</span>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-label" data-i18n="camera.stat.fps"></span>
+                      <span class="stat-value" data-stat="fps">—</span>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-label" data-i18n="camera.stat.bitrate"></span>
+                      <span class="stat-value" data-stat="bitrate">—</span>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-label" data-i18n="camera.stat.connection"></span>
+                      <span class="stat-value" data-conn-type>—</span>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-label" data-i18n="camera.stat.latency"></span>
+                      <span class="stat-value" data-conn-latency>—</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </section>
+
+            <!-- Files -------------------------------------------------- -->
+            <section class="screen" data-screen="files" aria-labelledby="files-title">
+              <div class="page-head">
+                <h1 class="page-title" id="files-title" data-i18n="files.title"></h1>
+                <p class="page-subtitle" data-i18n="files.subtitle"></p>
+              </div>
+
+              <div class="dropzone" data-dropzone>
+                <svg class="icon icon--lg"><use href="#i-upload"></use></svg>
+                <span data-i18n="files.dropHere"></span>
+                <button type="button" class="btn btn--primary" data-files-send data-i18n="files.send"></button>
+              </div>
+              <input type="file" data-files-input multiple hidden />
+              <p class="muted small" data-i18n="files.note"></p>
+
+              <div class="files-head">
+                <h2 class="card-title" data-i18n="files.session"></h2>
+                <button type="button" class="btn btn--ghost btn--small" data-files-clear data-i18n="files.clear"></button>
+              </div>
+
+              <div class="empty-state" data-files-empty>
+                <svg class="icon icon--lg"><use href="#i-folder"></use></svg>
+                <p data-i18n="files.empty"></p>
+              </div>
+              <ul class="transfer-list" data-transfer-list></ul>
+            </section>
+
+            <!-- Settings ----------------------------------------------- -->
+            <section class="screen" data-screen="settings" aria-labelledby="settings-title">
+              <div class="page-head">
+                <h1 class="page-title" id="settings-title" data-i18n="settings.title"></h1>
+                <p class="page-subtitle" data-i18n="settings.subtitle"></p>
+              </div>
+              <div data-settings-host></div>
+            </section>
+
+            <!-- Help --------------------------------------------------- -->
+            <section class="screen" data-screen="help" aria-labelledby="help-title">
+              <div class="page-head">
+                <h1 class="page-title" id="help-title" data-i18n="help.title"></h1>
+                <p class="page-subtitle" data-i18n="help.subtitle"></p>
+              </div>
+
+              <section class="card">
+                <h2 class="card-title" data-i18n="help.check.title"></h2>
+                <div class="card-body">
+                  <p class="muted small" data-i18n="help.check.body"></p>
+                  <div data-connection-check></div>
+                </div>
+              </section>
+
+              <section class="card">
+                <div class="card-body help-sections">
+                  <div class="help-section">
+                    <h2 data-i18n="help.pairing.title"></h2>
+                    <p data-i18n="help.pairing.body"></p>
+                  </div>
+                  <div class="help-section">
+                    <h2 data-i18n="help.backup.title"></h2>
+                    <p data-i18n="help.backup.body"></p>
+                  </div>
+                  <div class="help-section">
+                    <h2 data-i18n="help.verify.title"></h2>
+                    <p data-i18n="help.verify.body"></p>
+                  </div>
+                  <div class="help-section">
+                    <h2 data-i18n="help.usb.title"></h2>
+                    <p data-i18n="help.usb.body"></p>
+                  </div>
+                  <div class="help-section">
+                    <h2 data-i18n="help.wifi.title"></h2>
+                    <p data-i18n="help.wifi.body"></p>
+                  </div>
+                  <div class="help-section">
+                    <h2 data-i18n="help.troubleshooting.title"></h2>
+                    <ul class="steps">
+                      <li data-i18n="help.troubleshooting.camera"></li>
+                      <li data-i18n="help.troubleshooting.turn"></li>
+                      <li data-i18n="help.troubleshooting.firewall"></li>
+                      <li data-i18n="help.troubleshooting.files"></li>
+                    </ul>
+                  </div>
+                  <div class="help-section">
+                    <h2 data-i18n="help.privacy.title"></h2>
+                    <p data-i18n="help.privacy.body"></p>
+                  </div>
+                </div>
+              </section>
+            </section>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Verification dialog is built at runtime. -->
-    <div id="verify-modal" class="modal" hidden></div>
-    <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+    <div id="toasts" class="ld-toasts" role="region" aria-label="Notifications" aria-live="polite" aria-atomic="false"></div>
 
     <!-- Vendored libraries: local files, never a CDN. -->
     <script src="vendor/peerjs.min.js"></script>
-    <script src="vendor/mqtt.min.js"></script>
     <script src="vendor/qrcode.js"></script>
     <script type="module" src="js/ui.js"></script>
   </body>
