@@ -373,27 +373,36 @@ html.ld-scroll-lock body {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  width: 100%;
+  min-height: 40px;
   padding: 10px var(--space-3);
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   font-weight: 500;
+  line-height: 1.3;
   text-align: left;
   cursor: pointer;
-  transition: background var(--transition), color var(--transition);
+  transition: color var(--transition);
 }
 
-.nav-item:hover {
+/* The hover and active states change only the colour: padding, height and
+   radius stay identical so the sliding highlight always lines up. */
+.nav-item:hover,
+.nav-item.is-active {
   color: var(--text);
-}
-
-.nav-item svg {
-  flex: none;
 }
 
 .nav-item.is-active {
   color: var(--accent-strong);
+}
+
+/* Fixed-size icon box so every label starts at the same x. */
+.nav-item > .icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
 }
 
 .main {
@@ -927,6 +936,160 @@ html[data-vt-dir='backward']::view-transition-old(root) {
 .step.is-done .step-marker {
   background: var(--ok-soft);
   color: var(--ok);
+}
+
+/* --- QR public-address warning ------------------------------------ */
+
+.qr-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--wait);
+  border-radius: var(--radius);
+  background: var(--wait-soft);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+.qr-warning .icon {
+  margin-top: 2px;
+  color: var(--wait);
+}
+
+/* --- "Preparing…" until the host Peer is registered --------------- */
+
+.connect-preparing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.is-preparing [data-connect-waiting] {
+  display: none;
+}
+
+/* --- Live connection log ------------------------------------------ */
+
+.conn-log {
+  margin-top: var(--space-5);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.conn-log__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.conn-log__toggle:hover {
+  color: var(--text);
+}
+
+.conn-log__title {
+  flex: 1 1 auto;
+}
+
+.conn-log__chevron {
+  display: inline-flex;
+  flex: none;
+  transition: transform var(--transition);
+}
+
+.conn-log.is-open .conn-log__chevron {
+  transform: rotate(180deg);
+}
+
+.conn-log__body {
+  margin-top: var(--space-2);
+}
+
+.conn-log__list {
+  max-height: 240px;
+  margin: 0;
+  padding: var(--space-2);
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.conn-log__row {
+  display: grid;
+  grid-template-columns: 18px auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 3px 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.conn-log__icon {
+  display: inline-flex;
+  transform: translateY(2px);
+}
+
+.conn-log__time {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.conn-log__text {
+  min-width: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.conn-log__row[data-state='ok'] .conn-log__icon {
+  color: var(--ok);
+}
+
+.conn-log__row[data-state='warn'] .conn-log__icon {
+  color: var(--wait);
+}
+
+.conn-log__row[data-state='fail'] .conn-log__icon,
+.conn-log__row[data-state='fail'] .conn-log__text {
+  color: var(--danger);
+}
+
+.conn-log__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}
+
+/* The connecting screen log sits under the spinner, not centred. */
+.connecting-log {
+  width: 100%;
+  max-width: min(100%, 22rem);
+  text-align: left;
+}
+
+/* Breathing room for the "Force relay" switch inside the check tool. */
+.check-relay {
+  margin-top: var(--space-3);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
 }
 
 /* --- QR card ------------------------------------------------------ */
@@ -1485,7 +1648,13 @@ html[data-vt-dir='backward']::view-transition-old(root) {
   display: flex;
   flex-direction: column;
   height: 100dvh;
+  overflow-x: hidden;
   overflow-y: auto;
+}
+
+/* Last-resort safety net: never allow sideways scrolling on the phone. */
+body[data-role='phone'] {
+  overflow-x: hidden;
 }
 
 .phone-header {
@@ -1495,7 +1664,9 @@ html[data-vt-dir='backward']::view-transition-old(root) {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: calc(var(--space-2) + env(safe-area-inset-top)) var(--space-4) var(--space-2);
+  padding: calc(var(--space-2) + env(safe-area-inset-top))
+    max(var(--space-4), env(safe-area-inset-right)) var(--space-2)
+    max(var(--space-4), env(safe-area-inset-left));
   background: var(--glass-strong);
   backdrop-filter: blur(14px) saturate(1.4);
   border-bottom: 1px solid var(--border);
@@ -1507,13 +1678,30 @@ html[data-vt-dir='backward']::view-transition-old(root) {
   gap: var(--space-2);
 }
 
+/* Keep the header row inside a 320px viewport: the middle items shrink and
+   truncate instead of pushing the row wider than the screen. */
+.phone-header .device-name {
+  max-width: 26vw;
+  min-width: 0;
+}
+
+.phone-header .status-pill {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.phone-header #disconnect-btn {
+  flex: none;
+}
+
 .phone-content {
   flex: 1 0 auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4) var(--space-4)
-    calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-6));
+  padding: var(--space-4) max(var(--space-4), env(safe-area-inset-right))
+    calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-6))
+    max(var(--space-4), env(safe-area-inset-left));
 }
 
 .tabbar {
@@ -1533,18 +1721,17 @@ html[data-vt-dir='backward']::view-transition-old(root) {
 
 .tab-indicator {
   position: absolute;
-  top: 8px;
+  top: 0;
   left: 0;
   z-index: 0;
   width: 0;
-  height: 42px;
+  height: 0;
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
   opacity: 0;
-  scale: 0.74 1;
   pointer-events: none;
   transition: transform var(--dur-slow) var(--ease), width var(--dur-slow) var(--ease),
-    opacity var(--dur) var(--ease);
+    height var(--dur-slow) var(--ease), opacity var(--dur) var(--ease);
 }
 
 .tabbar .nav-item {
@@ -1552,10 +1739,16 @@ html[data-vt-dir='backward']::view-transition-old(root) {
   justify-content: center;
   align-items: center;
   gap: 2px;
+  width: 100%;
   min-height: var(--tabbar-height);
   padding: var(--space-2) var(--space-1);
-  border-radius: 0;
+  border-radius: var(--radius-pill);
   font-size: var(--text-xs);
+}
+
+.tabbar .nav-item > .icon {
+  width: 24px;
+  height: 24px;
 }
 
 .tabbar .nav-item.is-active {
@@ -1653,18 +1846,23 @@ html[data-vt-dir='backward']::view-transition-old(root) {
 }
 
 .code-cells {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: var(--space-2);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: min(100%, 22rem);
+  margin-inline: auto;
 }
 
 .code-cell {
-  flex: 1 1 0;
+  width: 100%;
   min-width: 0;
-  height: 56px;
+  height: clamp(46px, 14vw, 56px);
   padding: 0;
   text-align: center;
   font-family: var(--font-mono);
-  font-size: var(--text-lg);
+  font-size: clamp(1rem, 4.6vw, 1.25rem);
   font-weight: 600;
   color: var(--text);
   background: var(--surface-2);
@@ -1681,6 +1879,7 @@ html[data-vt-dir='backward']::view-transition-old(root) {
   margin: 0;
 }
 
+/* Visual 4-4 grouping: a wider gap between the two halves. */
 .code-cell:nth-child(5) {
   margin-left: var(--space-3);
 }
@@ -2266,7 +2465,10 @@ html[data-vt-dir='backward']::view-transition-old(root) {
 }
 
 .check-chip {
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px 2px 8px;
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-pill);
   font-size: var(--text-xs);
@@ -2279,6 +2481,15 @@ html[data-vt-dir='backward']::view-transition-old(root) {
   border-color: transparent;
   background: var(--ok-soft);
   color: var(--ok);
+}
+
+.check-chip__count {
+  min-width: 1.4em;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .check-conclusion {

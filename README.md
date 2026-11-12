@@ -211,9 +211,27 @@ Serve the folder over `http://localhost` (a secure context, so the camera works)
 npx serve .          # or: python3 -m http.server 8080
 ```
 
-Then open `http://localhost:8080` on the laptop and scan the QR code with the
-phone (or open `http://localhost:8080/phone.html` on the phone and type the
-code).
+Then open `http://localhost:8080` on the laptop and type the code on the phone
+at `http://<your-laptop-ip>:8080/phone.html` (or, if you have the site deployed
+over HTTPS, scan the QR code).
+
+### The QR code and the address it points at
+
+LinkDrop builds the phone URL from `BASE_URL` in `config.js` when it is set, and
+otherwise from the address the laptop page was opened on. A phone can only open
+that URL when it is a **public HTTPS address**, so:
+
+- On `localhost`, `127.0.0.1`, a `file://` URL or a plain-`http` LAN address the
+  Connect page shows a **warning banner**: the QR code points at an address the
+  phone cannot open, so you should open the deployed HTTPS site on the laptop
+  instead. The code and the QR code are still shown below the banner.
+- On a deployed HTTPS site (Vercel, GitHub Pages, a tunnel, …) the QR code works
+  directly. If the site lives under a sub-path, set `BASE_URL` so the QR code
+  always points at the right place:
+
+  ```js
+  export const BASE_URL = 'https://example.com/tools/linkdrop/';
+  ```
 
 ## Configuration (`config.js`)
 
@@ -260,17 +278,38 @@ export const MQTT_BROKERS = [
 ### Add a TURN server
 
 STUN is enough when both devices are on the same network. For connections across
-different networks (phone on mobile data, a strict firewall, symmetric NAT) add
-your own TURN server in `ICE_SERVERS`:
+different networks (phone on mobile data, a strict firewall, symmetric NAT, or a
+Wi-Fi with **client isolation**) a direct connection fails and a TURN relay is
+needed.
+
+**Where to paste your TURN values.** Create a TURN credential with a provider
+(for example Metered, Twilio, Cloudflare, coturn on your own server, …). The
+provider gives you an `iceServers` array with a `urls`, `username` and
+`credential`. Paste those objects into `ICE_SERVERS` in `config.js` — this is the
+only place you need to edit:
 
 ```js
 export const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   // --- TURN (optional) ---
+  // Replace the values below with the ones from your TURN provider.
   { urls: 'turn:turn.example.com:3478', username: 'user', credential: 'pass' },
   { urls: 'turns:turn.example.com:5349', username: 'user', credential: 'pass' },
 ];
 ```
+
+Reload both pages after editing. To verify the relay works, open **Help →
+Connection check** and either turn on **Force relay (test)** for that run, or set
+the transport policy in `config.js`:
+
+```js
+export const ICE_TRANSPORT_POLICY = 'relay'; // "all" (default) or "relay"
+```
+
+`"all"` lets LinkDrop use a direct connection when it can and fall back to TURN;
+`"relay"` forces everything through TURN, which is a good way to prove a TURN
+setup end to end (the Connection check should then report a **relay** candidate).
+When ICE fails, the app's error message points here.
 
 ## Known limitations
 

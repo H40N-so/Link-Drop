@@ -87,6 +87,18 @@
                 <p class="page-subtitle" data-i18n="connect.subtitle"></p>
               </div>
 
+              <!-- Shown when the QR code points at an address a phone cannot open. -->
+              <div class="qr-warning" id="qr-warning" role="status" hidden>
+                <svg class="icon icon--sm" aria-hidden="true"><use href="#i-alert"></use></svg>
+                <span data-qr-warning-text></span>
+              </div>
+
+              <!-- Shown until this laptop's Peer is registered on the server. -->
+              <div class="connect-preparing" data-connect-preparing hidden>
+                <span class="waiting-ring" aria-hidden="true"></span>
+                <span data-i18n="connect.preparing"></span>
+              </div>
+
               <!-- Pairing: shown while no phone is connected yet. -->
               <div class="connect-grid" id="connect-pairing" data-stagger>
                 <div class="card card--pad card--glass">
@@ -148,6 +160,9 @@
                       <span class="step-label" data-i18n="connect.step3"></span>
                     </li>
                   </ol>
+
+                  <!-- Collapsible live connection log (see js/log.js). -->
+                  <div data-conn-log></div>
                 </div>
 
                 <div class="card card--pad card--qr">
@@ -395,6 +410,18 @@
                       <li data-i18n="help.troubleshooting.firewall"></li>
                       <li data-i18n="help.troubleshooting.files"></li>
                     </ul>
+                  </div>
+                  <div class="help-section">
+                    <h2 data-i18n="help.turn.title"></h2>
+                    <p data-i18n="help.turn.body"></p>
+                  </div>
+                  <div class="help-section">
+                    <h2 data-i18n="help.localhost.title"></h2>
+                    <p data-i18n="help.localhost.body"></p>
+                  </div>
+                  <div class="help-section">
+                    <h2 data-i18n="help.log.title"></h2>
+                    <p data-i18n="help.log.body"></p>
                   </div>
                   <div class="help-section">
                     <h2 data-i18n="help.privacy.title"></h2>

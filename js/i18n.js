@@ -60,6 +60,9 @@ const EN = {
   'connect.openCamera': 'Open camera',
   'connect.sendFiles': 'Send files',
   'connect.detail.status': 'Status',
+  'connect.preparing': 'Preparing the pairing service…',
+  'connect.warn.qr':
+    'This QR code points to {url}, an address your phone cannot open. Open the deployed HTTPS site on this laptop instead — the code and QR below are still shown, but a phone can only reach them from the public site.',
 
   /* ---- verification ---- */
   'verify.allowTitle': 'Allow this device to connect?',
@@ -223,6 +226,15 @@ const EN = {
     'Firewalls: corporate networks and VPNs often block WebRTC. Try USB tethering or another network.',
   'help.troubleshooting.files':
     'A transfer failed: keep both screens open and retry. Large files need both devices to stay awake.',
+  'help.turn.title': 'TURN server (different networks)',
+  'help.turn.body':
+    'If the devices are on different networks (for example the phone on mobile data) or the Wi-Fi blocks device-to-device traffic, a direct connection may fail and a TURN relay is needed. See the “TURN server” section in README.md, then paste your provider’s iceServers values into ICE_SERVERS in config.js and reload both pages. The Connection check above can then confirm a relay candidate was gathered.',
+  'help.localhost.title': 'Why the QR code warns about the address',
+  'help.localhost.body':
+    'A phone can only open the QR code when it points at the deployed HTTPS site. If the laptop page is opened on localhost, 127.0.0.1, a file:// URL or a plain-http LAN address, the phone cannot reach it and LinkDrop shows a warning. Open the deployed site (for example your Vercel HTTPS URL) on the laptop and pair from there.',
+  'help.log.title': 'Connection details',
+  'help.log.body':
+    'The laptop Connect page and the phone connecting screen both have a “Connection details” panel. Open it to follow each step — signaling, the code lookup, the offer and answer, ICE candidates and the data channels — with timestamps. It opens automatically when something fails, and “Copy log” copies everything for a bug report.',
   'help.privacy.title': 'Privacy',
   'help.privacy.body':
     'Video and files travel directly between the two devices and are never uploaded to a server. The pairing services only ever see encrypted setup messages, and nothing about your files or video.',
@@ -249,7 +261,7 @@ const EN = {
   'errors.channelClosed': 'The connection was interrupted during the transfer.',
   'errors.generic': 'Something went wrong.',
   'errors.iceFailed':
-    'The two devices could not reach each other directly. This often happens when they are on different networks or one is on mobile data — a TURN server is usually needed. Connect both devices to the same Wi-Fi, or add a TURN server in config.js.',
+    'The two devices could not reach each other directly. This usually means they are on different networks, one is on mobile data, or the Wi-Fi has “client isolation” — a TURN server is normally required. Connect both to the same Wi-Fi, or add a TURN server (see the “TURN server” section in README.md, then paste the values into ICE_SERVERS in config.js).',
 
   /* ---- phone landing + scanner ---- */
   'phone.landingTitle': 'Connect to your laptop',
@@ -314,6 +326,37 @@ const EN = {
   'checks.detail.error': 'Connection error',
   'checks.detail.none': 'No candidates gathered',
   'checks.detail.bundleMissing': 'Not available in this browser',
+  'checks.forceRelay': 'Force relay (test)',
+  'checks.forceRelayHint':
+    'Route new connections through TURN only. Useful to verify a TURN server, but it blocks direct connections.',
+
+  /* ---- connection log ("Connection details") ---- */
+  'log.title': 'Connection details',
+  'log.copy': 'Copy log',
+  'log.copied': 'Copied',
+  'log.begin': 'New connection attempt',
+  'log.peerjs': 'PeerJS: {message}',
+  'log.signaling.connecting': 'Signaling server: connecting to {host}…',
+  'log.signaling.connected': 'Signaling server: connected',
+  'log.signaling.hostRegistered': 'Host registered as {id}',
+  'log.signaling.lookup': 'Looking up host {id}…',
+  'log.signaling.connOpen': 'Signaling data connection open',
+  'log.signaling.timeout': 'Signaling server did not respond in time',
+  'log.signaling.notFound': 'Host not found yet — the laptop may still be preparing',
+  'log.signaling.retry': 'Host not reachable, retrying ({n})…',
+  'log.signaling.error': 'Signaling error: {type}',
+  'log.rtc.offerSent': 'Offer sent',
+  'log.rtc.offerReceived': 'Offer received',
+  'log.rtc.answerSent': 'Answer sent',
+  'log.rtc.answerReceived': 'Answer received',
+  'log.ice.gathering': 'Gathering ICE candidates…',
+  'log.ice.candidates': 'ICE candidates — host: {host}, server reflexive: {srflx}, relay: {relay}',
+  'log.ice.queued': 'ICE candidate queued until the remote description is set',
+  'log.ice.state': 'ICE connection: {state}',
+  'log.ice.restart': 'ICE connection lost — restarting ({n})',
+  'log.conn.state': 'Peer connection: {state}',
+  'log.dtls.state': 'DTLS: {state}',
+  'log.dc.open': 'Data channel “{name}” open',
 
   /* ---- connection lost / reconnect ---- */
   'conn.lostTitle': 'Connection lost',
@@ -382,6 +425,9 @@ const ID = {
   'connect.openCamera': 'Buka kamera',
   'connect.sendFiles': 'Kirim berkas',
   'connect.detail.status': 'Status',
+  'connect.preparing': 'Menyiapkan layanan pemasangan…',
+  'connect.warn.qr':
+    'Kode QR ini mengarah ke {url}, alamat yang tidak dapat dibuka HP. Buka situs HTTPS yang sudah dipasang di laptop ini — kode dan QR di bawah tetap tampil, tetapi HP hanya bisa membukanya dari situs publik.',
 
   'verify.allowTitle': 'Izinkan perangkat ini terhubung?',
   'verify.allowBody': '“{name}” ingin terhubung ke laptop ini.',
@@ -539,6 +585,15 @@ const ID = {
     'Firewall: jaringan kantor dan VPN sering memblokir WebRTC. Coba USB tethering atau jaringan lain.',
   'help.troubleshooting.files':
     'Transfer gagal: biarkan kedua layar tetap terbuka lalu coba lagi. Berkas besar membuat perangkat harus tetap menyala.',
+  'help.turn.title': 'Server TURN (jaringan berbeda)',
+  'help.turn.body':
+    'Bila perangkat berada di jaringan berbeda (misalnya HP memakai data seluler) atau Wi-Fi memblokir lalu lintas antar perangkat, koneksi langsung bisa gagal dan perlu relay TURN. Lihat bagian “TURN server” di README.md, lalu tempelkan nilai iceServers dari penyedia Anda ke ICE_SERVERS di config.js dan muat ulang kedua halaman. Pemeriksaan koneksi di atas dapat memastikan kandidat relay berhasil dikumpulkan.',
+  'help.localhost.title': 'Mengapa QR memperingatkan soal alamat',
+  'help.localhost.body':
+    'HP hanya dapat membuka kode QR bila mengarah ke situs HTTPS yang sudah dipasang. Bila halaman laptop dibuka di localhost, 127.0.0.1, URL file:// atau alamat LAN http biasa, HP tidak dapat menjangkaunya dan LinkDrop menampilkan peringatan. Buka situs yang sudah dipasang (misalnya URL HTTPS Vercel Anda) di laptop lalu pasangkan dari sana.',
+  'help.log.title': 'Detail koneksi',
+  'help.log.body':
+    'Halaman Sambungkan di laptop dan layar menyambung di HP sama-sama punya panel “Detail koneksi”. Buka untuk mengikuti tiap langkah — signaling, pencarian kode, offer dan answer, kandidat ICE dan kanal data — beserta waktunya. Panel terbuka otomatis saat gagal, dan “Salin log” menyalin semuanya untuk laporan bug.',
   'help.privacy.title': 'Privasi',
   'help.privacy.body':
     'Video dan berkas berpindah langsung antar dua perangkat dan tidak pernah diunggah ke server. Layanan pemasangan hanya melihat pesan pemasangan terenkripsi, bukan berkas atau video Anda.',
@@ -565,7 +620,7 @@ const ID = {
   'errors.channelClosed': 'Koneksi terputus saat transfer berlangsung.',
   'errors.generic': 'Terjadi kesalahan.',
   'errors.iceFailed':
-    'Kedua perangkat tidak dapat saling terhubung secara langsung. Ini sering terjadi bila perangkat berada di jaringan berbeda atau salah satunya memakai data seluler — biasanya perlu server TURN. Sambungkan kedua perangkat ke Wi-Fi yang sama, atau tambahkan server TURN di config.js.',
+    'Kedua perangkat tidak dapat saling terhubung secara langsung. Biasanya ini karena keduanya berada di jaringan berbeda, salah satunya memakai data seluler, atau Wi-Fi memakai “client isolation” — biasanya perlu server TURN. Sambungkan keduanya ke Wi-Fi yang sama, atau tambahkan server TURN (lihat bagian “TURN server” di README.md, lalu tempelkan nilainya ke ICE_SERVERS di config.js).',
 
   'phone.landingTitle': 'Sambungkan ke laptop',
   'phone.landingSubtitle': 'Ketik kode 8 angka, atau pindai kode QR di laptop.',
@@ -626,6 +681,37 @@ const ID = {
   'checks.detail.error': 'Kesalahan koneksi',
   'checks.detail.none': 'Tidak ada kandidat',
   'checks.detail.bundleMissing': 'Tidak tersedia di peramban ini',
+  'checks.forceRelay': 'Paksa relay (uji)',
+  'checks.forceRelayHint':
+    'Arahkan koneksi baru hanya lewat TURN. Berguna untuk menguji server TURN, tetapi memblokir koneksi langsung.',
+
+  /* ---- log koneksi ("Detail koneksi") ---- */
+  'log.title': 'Detail koneksi',
+  'log.copy': 'Salin log',
+  'log.copied': 'Disalin',
+  'log.begin': 'Percobaan koneksi baru',
+  'log.peerjs': 'PeerJS: {message}',
+  'log.signaling.connecting': 'Server signaling: menyambung ke {host}…',
+  'log.signaling.connected': 'Server signaling: tersambung',
+  'log.signaling.hostRegistered': 'Host terdaftar sebagai {id}',
+  'log.signaling.lookup': 'Mencari host {id}…',
+  'log.signaling.connOpen': 'Koneksi data signaling terbuka',
+  'log.signaling.timeout': 'Server signaling tidak merespons tepat waktu',
+  'log.signaling.notFound': 'Host belum ditemukan — laptop mungkin masih menyiapkan',
+  'log.signaling.retry': 'Host tidak terjangkau, mencoba lagi ({n})…',
+  'log.signaling.error': 'Kesalahan signaling: {type}',
+  'log.rtc.offerSent': 'Offer terkirim',
+  'log.rtc.offerReceived': 'Offer diterima',
+  'log.rtc.answerSent': 'Answer terkirim',
+  'log.rtc.answerReceived': 'Answer diterima',
+  'log.ice.gathering': 'Mengumpulkan kandidat ICE…',
+  'log.ice.candidates': 'Kandidat ICE — host: {host}, server reflexive: {srflx}, relay: {relay}',
+  'log.ice.queued': 'Kandidat ICE diantrekan sampai deskripsi remote disetel',
+  'log.ice.state': 'Koneksi ICE: {state}',
+  'log.ice.restart': 'Koneksi ICE terputus — memulai ulang ({n})',
+  'log.conn.state': 'Koneksi peer: {state}',
+  'log.dtls.state': 'DTLS: {state}',
+  'log.dc.open': 'Kanal data “{name}” terbuka',
 
   'conn.lostTitle': 'Koneksi terputus',
   'conn.lost': 'Koneksi ke perangkat lain terputus.',

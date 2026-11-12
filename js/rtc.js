@@ -14,7 +14,27 @@
 //   host  (the laptop) : answers
 // Keeping a single offerer keeps negotiation simple and predictable.
 
-import { ICE_SERVERS, RTC_CONFIG, SESSION_CONFIG } from '../config.js';
+import { ICE_SERVERS, RTC_CONFIG, SESSION_CONFIG, ICE_TRANSPORT_POLICY } from '../config.js';
+import { connLog } from './log.js';
+import { t } from './i18n.js';
+
+/* ------------------------------------------------------------------ *
+ * ICE transport policy
+ * ------------------------------------------------------------------ */
+
+// Starts at the value from config.js; the Connection check tool can flip it to
+// 'relay' at runtime to test a TURN setup without editing the file.
+let runtimeTransportPolicy = ICE_TRANSPORT_POLICY === 'relay' ? 'relay' : 'all';
+
+/** Override the ICE transport policy for connections created from now on. */
+export function setIceTransportPolicy(policy) {
+  runtimeTransportPolicy = policy === 'relay' ? 'relay' : 'all';
+}
+
+/** The ICE transport policy new connections will use. */
+export function getIceTransportPolicy() {
+  return runtimeTransportPolicy;
+}
 
 /* ------------------------------------------------------------------ *
  * Tiny event emitter
@@ -169,6 +189,12 @@ export class RTCSession extends Emitter {
     this._iceRestarts = 0;
     this._timeoutFired = false;
 
+    // Diagnostics for the live connection log: how many candidates of each
+    // type we gathered, and whether we already reported the DTLS state.
+    this._iceCounts = { host: 0, srflx: 0, prflx: 0, relay: 0 };
+    this._iceGatheringLogged = false;
+    this._dtlsLogged = false;
+
     // Rolling window used to compute the inbound video bitrate without
     // allocating on every sample.
     this._lastBytes = 0;
@@ -189,6 +215,10 @@ export class RTCSession extends Emitter {
   async start() {
     this.pc = new RTCPeerConnection({
       iceServers: ICE_SERVERS,
+      // 'all' by default; the Connection check tool can force 'relay' to test
+      // a TURN setup. Read from the runtime value so a flip takes effect for
+      // connections created afterwards.
+      iceTransportPolicy: runtimeTransportPolicy,
       // These two make WebRTC treat the link as a direct LAN connection when
       // possible, which improves the "local network" case.
       bundlePolicy: 'max-bundle',
@@ -234,11 +264,13 @@ export class RTCSession extends Emitter {
 
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
+      connLog.info(t('log.conn.state', { state }));
       this.emit('state', { state });
       if (state === 'connected') {
         this._connected = true;
         this._clearConnectTimer();
         this._flushCandidates();
+        void this._logDtlsState();
       } else if (state === 'closed') {
         this._connected = false;
         this._clearWatchdogs();
@@ -252,12 +284,18 @@ export class RTCSession extends Emitter {
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
+        this._logCandidate(event.candidate);
         this._sendSignal({ type: 'candidate', candidate: event.candidate.toJSON() });
       }
     };
 
+    pc.onicegatheringstatechange = () => {
+      if (pc.iceGatheringState === 'complete') this._logGatheringSummary();
+    };
+
     pc.oniceconnectionstatechange = () => {
       const state = pc.iceConnectionState;
+      connLog.info(t('log.ice.state', { state }));
       this.emit('ice-state', { state });
       if (state === 'failed') {
         this._clearDisconnectedTimer();
@@ -271,6 +309,42 @@ export class RTCSession extends Emitter {
         this._iceRestarts = 0;
       }
     };
+  }
+
+  /** Count one gathered candidate by type and log the first one. */
+  _logCandidate(candidate) {
+    const type =
+      candidate.type || /(?:typ\s+)(\w+)/.exec(candidate.candidate || '')?.[1] || 'host';
+    if (type in this._iceCounts) this._iceCounts[type]++;
+    if (this._iceCounts.host + this._iceCounts.srflx + this._iceCounts.prflx + this._iceCounts.relay === 1) {
+      connLog.info(t('log.ice.gathering'));
+    }
+  }
+
+  /** Report how many candidates of each type we gathered once discovery ends. */
+  _logGatheringSummary() {
+    if (this._iceGatheringLogged) return;
+    this._iceGatheringLogged = true;
+    const { host, srflx, relay } = this._iceCounts;
+    connLog.ok(t('log.ice.candidates', { host, srflx, relay }));
+  }
+
+  /** Read the DTLS state from the transport stats (there is no event for it). */
+  async _logDtlsState() {
+    if (this._dtlsLogged) return;
+    try {
+      const stats = await this.pc.getStats();
+      let dtls = null;
+      stats.forEach((report) => {
+        if (report.type === 'transport' && report.dtlsState) dtls = report.dtlsState;
+      });
+      if (dtls) {
+        this._dtlsLogged = true;
+        connLog.ok(t('log.dtls.state', { state: dtls }));
+      }
+    } catch {
+      /* stats are best effort */
+    }
   }
 
   _wireChannel(channel, name) {
@@ -290,6 +364,7 @@ export class RTCSession extends Emitter {
       if (opened) return;
       opened = true;
       this._channelsOpen++;
+      connLog.ok(t('log.dc.open', { name }));
       if (this.control?.readyState === 'open' && this.files?.readyState === 'open') {
         // Both channels are up, so setup is finished. The signaling adapter can
         // now tear itself down: everything from here flows peer-to-peer.
@@ -345,11 +420,13 @@ export class RTCSession extends Emitter {
     await this.pc.setLocalDescription(offer);
     this._awaitingAnswer = true;
     this._sendSignal({ type: 'offer', sdp: this.pc.localDescription.sdp });
+    connLog.ok(t('log.rtc.offerSent'));
     this._negotiating = false;
   }
 
   /** Host only: answer an incoming offer. */
   async handleOffer(sdp) {
+    connLog.ok(t('log.rtc.offerReceived'));
     this._armConnectTimer();
     await this.pc.setRemoteDescription({ type: 'offer', sdp });
     // Candidates trickle in and may have arrived before the offer was applied;
@@ -358,6 +435,7 @@ export class RTCSession extends Emitter {
     const answer = await this.pc.createAnswer();
     await this.pc.setLocalDescription(answer);
     this._sendSignal({ type: 'answer', sdp: this.pc.localDescription.sdp });
+    connLog.ok(t('log.rtc.answerSent'));
   }
 
   /** Guest only: handle the answer (initial or after an ICE restart). */
@@ -366,6 +444,7 @@ export class RTCSession extends Emitter {
     this._awaitingAnswer = false;
     await this.pc.setRemoteDescription({ type: 'answer', sdp });
     this._flushCandidates();
+    connLog.ok(t('log.rtc.answerReceived'));
   }
 
   async _onSignal(message) {
@@ -394,6 +473,7 @@ export class RTCSession extends Emitter {
     // Candidates can arrive before the remote description is set.
     if (!this.pc.remoteDescription) {
       this._pendingCandidates.push(candidate);
+      connLog.debug(t('log.ice.queued'));
       return;
     }
     try {
@@ -491,6 +571,7 @@ export class RTCSession extends Emitter {
     }
     this._iceRestarts++;
     this.emit('ice-restart', { attempt: this._iceRestarts, reason });
+    connLog.warn(t('log.ice.restart', { n: this._iceRestarts }));
 
     if (this.role === 'guest') {
       try {

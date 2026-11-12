@@ -86,6 +86,9 @@
                   hidden
                 ></button>
               </div>
+
+              <!-- Collapsible live connection log (see js/log.js). -->
+              <div data-conn-log></div>
             </div>
           </section>
 
@@ -101,6 +104,9 @@
               <h1 class="page-title" id="phone-connecting-title" data-i18n="phone.connectingTo"></h1>
               <p class="muted" id="phone-connecting-detail"></p>
               <button type="button" class="btn btn--ghost" data-action="cancel-connect" data-i18n="common.cancel"></button>
+
+              <!-- Collapsible live connection log (see js/log.js). -->
+              <div class="connecting-log" data-conn-log></div>
             </div>
           </section>
 
@@ -211,6 +217,18 @@
                     <li data-i18n="help.troubleshooting.turn"></li>
                     <li data-i18n="help.troubleshooting.files"></li>
                   </ul>
+                </div>
+                <div class="help-section">
+                  <h2 data-i18n="help.turn.title"></h2>
+                  <p data-i18n="help.turn.body"></p>
+                </div>
+                <div class="help-section">
+                  <h2 data-i18n="help.localhost.title"></h2>
+                  <p data-i18n="help.localhost.body"></p>
+                </div>
+                <div class="help-section">
+                  <h2 data-i18n="help.log.title"></h2>
+                  <p data-i18n="help.log.body"></p>
                 </div>
                 <div class="help-section">
                   <h2 data-i18n="help.privacy.title"></h2>

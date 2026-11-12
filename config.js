@@ -8,36 +8,89 @@
 // syntax valid.
 
 /* --------------------------------------------------------------------------
+ * 0. Public URL (used by the QR code)
+ * --------------------------------------------------------------------------
+ * The QR code on the laptop opens the phone page at whatever address the laptop
+ * itself was opened on. That address is only useful to a phone when it is a
+ * public HTTPS URL; on localhost, a plain-http LAN address or a file:// URL the
+ * phone cannot reach it, and LinkDrop shows a warning on the Connect page.
+ *
+ * Set BASE_URL to the public address of your deployment to make the QR code
+ * point there regardless of how the laptop page was opened. Leave it empty to
+ * keep using the current location. No trailing slash.
+ *
+ *   export const BASE_URL = 'https://linkdrop.example.com';
+ */
+export const BASE_URL = '';
+
+/* --------------------------------------------------------------------------
  * 1. ICE servers
  * --------------------------------------------------------------------------
- * STUN lets two devices behind NAT discover their public address. The public
- * Google STUN servers below are fine for most home/office networks and for
- * two devices on the same Wi-Fi.
+ * This array is the single source of ICE configuration in the project: the
+ * laptop's RTCPeerConnection, the phone's RTCPeerConnection, the PeerJS
+ * signaling transport and the "Connection check" probe all read it. Edit it
+ * here once and every connection on both devices picks up the change.
  *
- * TURN is only needed when the two devices cannot reach each other directly
- * (for example phone on mobile data, laptop behind a strict firewall, or
- * symmetric NAT). TURN relays the traffic and therefore costs bandwidth.
+ * STUN lets a device behind NAT discover its public address. TURN relays the
+ * traffic when a direct path is impossible (phone on mobile data, strict
+ * firewall, symmetric NAT); it costs bandwidth, so it is only used when
+ * needed. Servers are tried in order.
  *
- * To use your own TURN server, uncomment the TURN entry below and fill in the
- * url, username and credential. The empty entry is intentionally left here as
- * documentation. You can list several TURN servers; they are tried in order.
+ * Everything listed here ships to the browser and is visible to anyone who
+ * opens DevTools, so treat these as shared/public credentials, never secrets.
+ * The app itself never prints them in the UI or in the connection log.
+ *
+ * To use your own provider instead, replace the TURN entries below with the
+ * `iceServers` values it gives you (`urls`, `username`, `credential`).
  */
 export const ICE_SERVERS = [
-  // Several well-known public STUN servers. Having more than one means a
-  // single unreachable host does not break discovery.
+  // --- TURN + STUN (Metered relay service) ---------------------------------
+  { urls: 'stun:stun.relay.metered.ca:80' },
+  {
+    urls: 'turn:global.relay.metered.ca:80',
+    username: 'e884ea8755686e211c47c7d0',
+    credential: 'NUznD7Io2J07NQjN',
+  },
+  {
+    urls: 'turn:global.relay.metered.ca:80?transport=tcp',
+    username: 'e884ea8755686e211c47c7d0',
+    credential: 'NUznD7Io2J07NQjN',
+  },
+  {
+    urls: 'turn:global.relay.metered.ca:443',
+    username: 'e884ea8755686e211c47c7d0',
+    credential: 'NUznD7Io2J07NQjN',
+  },
+  {
+    urls: 'turns:global.relay.metered.ca:443?transport=tcp',
+    username: 'e884ea8755686e211c47c7d0',
+    credential: 'NUznD7Io2J07NQjN',
+  },
+
+  // --- Additional public STUN servers --------------------------------------
+  // Extra discovery fallbacks: more than one means a single unreachable host
+  // does not break gathering.
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun2.l.google.com:19302' },
   { urls: 'stun:stun.cloudflare.com:3478' },
   { urls: 'stun:stun.nextcloud.com:443' },
   { urls: 'stun:global.stun.twilio.com:3478' },
-
-  // --- TURN (optional) -----------------------------------------------------
-  // Add your own TURN server here for connections across different networks
-  // (phone on mobile data, strict firewalls, symmetric NAT).
-  // { urls: 'turn:turn.example.com:3478', username: '', credential: '' },
-  // { urls: 'turns:turn.example.com:5349', username: '', credential: '' },
 ];
+
+/* --------------------------------------------------------------------------
+ * 1b. ICE transport policy
+ * --------------------------------------------------------------------------
+ * 'all' (the default) gathers direct, server-reflexive and relay candidates.
+ *
+ * 'relay' forces every connection through a TURN server, which is useful to
+ * test that your TURN configuration actually works. It is much slower and
+ * costs bandwidth, so keep 'all' in normal use.
+ *
+ * The "Force relay (test)" switch in the Connection check tool flips this at
+ * runtime for new connections without editing this file.
+ */
+export const ICE_TRANSPORT_POLICY = 'all'; // 'all' | 'relay'
 
 /* --------------------------------------------------------------------------
  * 2. WebRTC tuning

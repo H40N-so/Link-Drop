@@ -4,14 +4,15 @@
 // result in plain language:
 //   - the PeerJS server (the pairing service)
 //   - every configured MQTT broker (only when the backup is enabled)
-//   - STUN reachability, by gathering real ICE candidates
-//   - which candidate types this device can gather (host / srflx / relay)
+//   - STUN/TURN reachability, by gathering real ICE candidates
+//   - how many candidates of each type this device gathered, including relay
 //
 // Nothing here touches an existing session; every probe uses its own very
 // short-lived connection and tears it down immediately.
 
 import { ICE_SERVERS, MQTT_BROKERS, CHECK_CONFIG, ENABLE_BACKUP_SIGNALING } from '../config.js';
 import { peerJsOptions, peerJsHostLabel } from './signaling-peerjs.js';
+import { setIceTransportPolicy, getIceTransportPolicy } from './rtc.js';
 import { t } from './i18n.js';
 import { icon } from './icons.js';
 
@@ -117,15 +118,20 @@ function checkBroker(url) {
   });
 }
 
-/** Gather real ICE candidates and report which types this device produced. */
+/** Gather real ICE candidates and count how many of each type we produced. */
 function gatherCandidates() {
   return new Promise((resolve) => {
-    const types = { host: false, srflx: false, prflx: false, relay: false };
+    const counts = { host: 0, srflx: 0, prflx: 0, relay: 0 };
     let pc = null;
     try {
-      pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      pc = new RTCPeerConnection({
+        iceServers: ICE_SERVERS,
+        // Respect the runtime policy so the "Force relay (test)" switch also
+        // changes what this probe gathers.
+        iceTransportPolicy: getIceTransportPolicy(),
+      });
     } catch {
-      resolve({ ok: false, types });
+      resolve({ ok: false, counts });
       return;
     }
     let settled = false;
@@ -138,7 +144,7 @@ function gatherCandidates() {
       } catch {
         /* ignore */
       }
-      resolve({ ok: true, types });
+      resolve({ ok: true, counts });
     };
     const timer = setTimeout(done, CHECK_CONFIG.stunTimeoutMs);
     pc.onicecandidate = (event) => {
@@ -147,7 +153,7 @@ function gatherCandidates() {
         return;
       }
       const type = event.candidate.type || /(?:typ\s+)(\w+)/.exec(event.candidate.candidate || '')?.[1];
-      if (type && type in types) types[type] = true;
+      if (type && type in counts) counts[type]++;
     };
     try {
       pc.createDataChannel('probe');
@@ -164,9 +170,10 @@ function gatherCandidates() {
 function buildConclusion({ peerjs, brokers, ice }) {
   const anySignaling = peerjs.status === STATUS.pass || brokers.some((b) => b.status === STATUS.pass);
   if (!anySignaling) return t('checks.conclNoSignaling');
-  if (ice.types.relay) return t('checks.conclTurn');
-  if (ice.types.srflx) return t('checks.conclStun');
-  if (ice.types.host) return t('checks.conclLocalOnly');
+  const c = ice.counts || {};
+  if (c.relay) return t('checks.conclTurn');
+  if (c.srflx) return t('checks.conclStun');
+  if (c.host) return t('checks.conclLocalOnly');
   return t('checks.conclUnknown');
 }
 
@@ -181,7 +188,7 @@ export async function runConnectionCheck(onProgress) {
   const results = {
     peerjs: { status: STATUS.pending },
     brokers: brokerUrls.map((url) => ({ url, label: brokerLabel(url), status: STATUS.pending })),
-    ice: { ok: false, types: { host: false, srflx: false, prflx: false, relay: false } },
+    ice: { ok: false, counts: { host: 0, srflx: 0, prflx: 0, relay: 0 } },
     conclusion: '',
   };
 
@@ -289,7 +296,7 @@ export function mountConnectionCheck(container) {
   activeBrokers().forEach((url, index) => addRow(`broker:${index}`, t('checks.broker', { host: brokerLabel(url) })));
   const iceRow = addRow('ice', t('checks.ice'));
 
-  // Candidate-type chips live under the ICE row.
+  // Candidate-type chips live under the ICE row, each with a live count.
   const chips = document.createElement('div');
   chips.className = 'check-chips';
   const chipEls = {};
@@ -301,7 +308,14 @@ export function mountConnectionCheck(container) {
     const chip = document.createElement('span');
     chip.className = 'check-chip';
     chip.dataset.type = key;
-    chip.textContent = t(labelKey);
+    chip.dataset.on = 'false';
+    const label = document.createElement('span');
+    label.className = 'check-chip__label';
+    label.textContent = t(labelKey);
+    const count = document.createElement('span');
+    count.className = 'check-chip__count';
+    count.textContent = '0';
+    chip.append(label, count);
     chips.appendChild(chip);
     chipEls[key] = chip;
   }
@@ -311,7 +325,42 @@ export function mountConnectionCheck(container) {
   conclusion.className = 'check-conclusion';
   conclusion.hidden = true;
 
-  container.append(intro, button, rowsHost, conclusion);
+  // "Force relay (test)": flips the ICE transport policy for connections
+  // created from now on, so a TURN setup can be verified end to end.
+  const relayRow = document.createElement('div');
+  relayRow.className = 'setting check-relay';
+  const relayText = document.createElement('div');
+  relayText.className = 'setting-text';
+  const relayTitle = document.createElement('span');
+  relayTitle.className = 'setting-title';
+  relayTitle.textContent = t('checks.forceRelay');
+  const relayHelp = document.createElement('span');
+  relayHelp.className = 'setting-help';
+  relayHelp.textContent = t('checks.forceRelayHint');
+  relayText.append(relayTitle, relayHelp);
+
+  const relaySwitch = document.createElement('button');
+  relaySwitch.type = 'button';
+  relaySwitch.className = 'switch setting-control';
+  relaySwitch.setAttribute('role', 'switch');
+  const relayKnob = document.createElement('span');
+  relayKnob.className = 'switch-knob';
+  relaySwitch.appendChild(relayKnob);
+
+  let relayOn = getIceTransportPolicy() === 'relay';
+  const renderRelay = () => {
+    relaySwitch.classList.toggle('is-on', relayOn);
+    relaySwitch.setAttribute('aria-checked', String(relayOn));
+  };
+  renderRelay();
+  relaySwitch.addEventListener('click', () => {
+    relayOn = !relayOn;
+    setIceTransportPolicy(relayOn ? 'relay' : 'all');
+    renderRelay();
+  });
+  relayRow.append(relayText, relaySwitch);
+
+  container.append(intro, relayRow, button, rowsHost, conclusion);
 
   let running = false;
 
@@ -321,7 +370,10 @@ export function mountConnectionCheck(container) {
       if (id.startsWith('broker:')) setRow(parts, STATUS.pending, t('checks.notTested'));
     });
     setRow(iceRow, STATUS.pending, t('checks.notTested'));
-    for (const chip of Object.values(chipEls)) chip.dataset.on = 'false';
+    for (const chip of Object.values(chipEls)) {
+      chip.dataset.on = 'false';
+      chip.querySelector('.check-chip__count').textContent = '0';
+    }
     conclusion.hidden = true;
     rowsHost.querySelectorAll('.check-row').forEach((r) => {
       r.classList.remove('reveal');
@@ -346,9 +398,13 @@ export function mountConnectionCheck(container) {
       } else if (id.startsWith('broker:')) {
         setRow(rowMap.get(id), result.status, result.detail);
       } else if (id === 'ice') {
-        const types = result.types || {};
-        for (const [key, chip] of Object.entries(chipEls)) chip.dataset.on = types[key] ? 'true' : 'false';
-        const got = ['host', 'srflx', 'relay'].filter((k) => types[k]);
+        const counts = result.counts || {};
+        for (const [key, chip] of Object.entries(chipEls)) {
+          const n = counts[key] || 0;
+          chip.dataset.on = n ? 'true' : 'false';
+          chip.querySelector('.check-chip__count').textContent = String(n);
+        }
+        const got = ['host', 'srflx', 'relay'].filter((k) => counts[k]);
         setRow(
           iceRow,
           got.length ? STATUS.pass : STATUS.warn,

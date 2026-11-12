@@ -8,7 +8,7 @@
 // runs the phone role. The two roles are kept apart on purpose — the laptop
 // only ever shows the code and the QR code, never a link to the phone page.
 
-import { SESSION_CONFIG, ENABLE_BACKUP_SIGNALING } from '../config.js';
+import { SESSION_CONFIG, ENABLE_BACKUP_SIGNALING, BASE_URL } from '../config.js';
 import { RTCSession, Emitter } from './rtc.js';
 import { createPeerJsSignaling, peerJsAvailable } from './signaling-peerjs.js';
 import {
@@ -28,6 +28,7 @@ import { isDesktopClass, isPhoneClass } from './device.js';
 import { QrScanner, extractCode } from './scanner.js';
 import { mountConnectionCheck } from './checks.js';
 import { mountIconSprite } from './icons.js';
+import { connLog, mountConnectionLog } from './log.js';
 
 /* ------------------------------------------------------------------ *
  * Shared app object
@@ -170,11 +171,11 @@ function moveNavIndicators() {
   const navIndicator = nav?.querySelector('.nav-indicator');
   if (nav && navIndicator) {
     if (navActive) {
-      const nr = nav.getBoundingClientRect();
-      const ar = navActive.getBoundingClientRect();
-      navIndicator.style.width = ar.width + 'px';
-      navIndicator.style.height = ar.height + 'px';
-      navIndicator.style.transform = `translate3d(${Math.round(ar.left - nr.left)}px, ${Math.round(ar.top - nr.top)}px, 0)`;
+      // Measured from the item itself so the highlight always matches, in the
+      // normal, hover and active states alike.
+      navIndicator.style.width = navActive.offsetWidth + 'px';
+      navIndicator.style.height = navActive.offsetHeight + 'px';
+      navIndicator.style.transform = `translate3d(${navActive.offsetLeft}px, ${navActive.offsetTop}px, 0)`;
       navIndicator.style.opacity = '1';
     } else {
       navIndicator.style.opacity = '0';
@@ -186,10 +187,15 @@ function moveNavIndicators() {
   const tabIndicator = tabbar?.querySelector('.tab-indicator');
   if (tabbar && tabIndicator) {
     if (tabActive) {
-      const tr = tabbar.getBoundingClientRect();
-      const ar = tabActive.getBoundingClientRect();
-      tabIndicator.style.width = ar.width + 'px';
-      tabIndicator.style.transform = `translate3d(${Math.round(ar.left - tr.left)}px, 0, 0)`;
+      // Measured from the item, then inset a little so it reads as a pill
+      // behind the icon and label rather than a full-height block.
+      const insetX = Math.round(tabActive.offsetWidth * 0.16);
+      const insetY = 8;
+      tabIndicator.style.width = Math.max(0, tabActive.offsetWidth - insetX * 2) + 'px';
+      tabIndicator.style.height = Math.max(0, tabActive.offsetHeight - insetY * 2) + 'px';
+      tabIndicator.style.transform = `translate3d(${tabActive.offsetLeft + insetX}px, ${
+        tabActive.offsetTop + insetY
+      }px, 0)`;
       tabIndicator.style.opacity = '1';
     } else {
       tabIndicator.style.opacity = '0';
@@ -221,16 +227,64 @@ function showConnecting() {
  * Pairing code screen (laptop)
  * ------------------------------------------------------------------ */
 
+/**
+ * Base directory the QR code should point at. When BASE_URL is set in
+ * config.js it wins, so the QR code points at the deployed HTTPS site even if
+ * the laptop was opened somewhere else. Otherwise we keep the current address
+ * so the app works at a domain root, under a sub-path and on localhost.
+ */
+function phoneBase() {
+  if (BASE_URL) return BASE_URL.endsWith('/') ? BASE_URL : BASE_URL + '/';
+  return location.href.split(/[?#]/)[0].replace(/[^/]*$/, '');
+}
+
 function phonePageUrl(code) {
-  // Build the phone URL from the current location so it works at a domain
-  // root, under a sub-path and on localhost. Only the QR code uses this:
-  // the laptop page never links to the phone page.
-  const base = location.href.split(/[?#]/)[0].replace(/[^/]*$/, '');
-  const url = new URL(base + 'phone.html', location.href);
+  // Only the QR code uses this: the laptop page never links to the phone page.
+  const url = new URL(phoneBase() + 'phone.html', location.href);
   url.search = '';
   url.hash = '';
   if (code) url.searchParams.set('code', code);
   return url.toString();
+}
+
+/**
+ * A QR code is only useful to a phone when it points at a public https URL.
+ * localhost, 127.0.0.1, file:// pages and plain-http addresses (including a
+ * LAN IP) are unreachable or unusable from a phone, so the Connect page shows
+ * a warning — but still shows the code and QR below it.
+ */
+function qrAddressIsPublic() {
+  let url;
+  try {
+    url = new URL(BASE_URL || location.href);
+  } catch {
+    return false;
+  }
+  const host = url.hostname;
+  const local =
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '::1' ||
+    host.endsWith('.localhost');
+  return url.protocol === 'https:' && !local;
+}
+
+/** Show or hide the "this address will not work on a phone" banner. */
+function updateQrWarning() {
+  const banner = $('#qr-warning');
+  if (!banner) return;
+  const isPublic = qrAddressIsPublic();
+  banner.hidden = isPublic;
+  if (isPublic) return;
+  const text = banner.querySelector('[data-qr-warning-text]');
+  if (!text) return;
+  let address = BASE_URL || location.href;
+  try {
+    address = new URL(BASE_URL || location.href).origin;
+  } catch {
+    /* keep the raw value */
+  }
+  text.textContent = t('connect.warn.qr', { url: address });
 }
 
 function renderCode() {
@@ -342,6 +396,15 @@ function setLaptopConnectPhase(phase) {
   } else {
     swap();
   }
+}
+
+/** Show the "Preparing…" state until the laptop's Peer is registered. */
+function setLaptopPreparing(on) {
+  if (app.role !== 'laptop') return;
+  const prep = $('[data-connect-preparing]');
+  if (prep) prep.hidden = !on;
+  const grid = $('#connect-pairing');
+  if (grid) grid.classList.toggle('is-preparing', on);
 }
 
 function newCode({ listen = true } = {}) {
@@ -680,6 +743,7 @@ async function joinSession(input) {
 
   runtime.code = code;
   runtime.issuedAt = Date.now();
+  connLog.begin(t('log.begin'));
   setStatus('connecting');
   hideInlineError();
   showConnecting();
@@ -738,13 +802,21 @@ async function hostListen() {
 
   if (!runtime.issuedAt) runtime.issuedAt = Date.now();
   setConnectStep(1);
-  setStatus('waiting', t('connect.waiting'));
+  // The code and QR only make sense once our Peer is registered, so we show a
+  // "Preparing…" state until then.
+  setLaptopPreparing(true);
+  setStatus('waiting', t('connect.preparing'));
   hideInlineError();
   updateDeviceName();
+  connLog.begin(t('log.begin'));
 
   try {
     const adapter = await startSignaling(runtime.code);
     if (!adapter) return;
+
+    // The Peer is open and registered: reveal the code and the QR code.
+    setLaptopPreparing(false);
+    setStatus('waiting', t('connect.waiting'));
 
     runtime.adapter = adapter;
     const session = new RTCSession({ role: 'host', signaling: adapter });
@@ -756,6 +828,7 @@ async function hostListen() {
     app.emit('session', session);
   } catch (err) {
     const key = err?.key || 'errors.connectionFailed';
+    setLaptopPreparing(false);
     showInlineError(key, { retry: isSignalingError(key) });
     setStatus('disconnected');
   }
@@ -1298,6 +1371,17 @@ function mountChecks() {
   if (host) mountConnectionCheck(host);
 }
 
+/** Mount the collapsible "Connection details" panel wherever it is placed. */
+let logPanels = [];
+function mountLogPanels() {
+  logPanels.forEach((panel) => panel?.dispose());
+  logPanels = [];
+  document.querySelectorAll('[data-conn-log]').forEach((host) => {
+    const panel = mountConnectionLog(host);
+    if (panel) logPanels.push(panel);
+  });
+}
+
 /* ------------------------------------------------------------------ *
  * Boot helpers
  * ------------------------------------------------------------------ */
@@ -1306,7 +1390,10 @@ function refreshDynamicText() {
   renderCode();
   setStatus(runtime.status, $('[data-connect-detail]')?.textContent || '');
   if (runtime.connectPhase === 'connected') fillConnectedCard();
+  updateQrWarning();
+  moveNavIndicators();
   mountChecks();
+  mountLogPanels();
 }
 
 function fatalRoleMessage() {
@@ -1374,6 +1461,9 @@ function bindNav() {
   });
 
   window.addEventListener('resize', moveNavIndicators);
+  // Re-measure once the web font has loaded: the labels' width changes and the
+  // highlight would otherwise sit a few pixels off.
+  document.fonts?.ready?.then(() => moveNavIndicators()).catch(() => {});
 }
 
 async function copyCode() {
@@ -1417,6 +1507,8 @@ function setupCommon() {
   if (settingsHost) settingsHost.appendChild(mountSettings(app));
 
   mountChecks();
+  mountLogPanels();
+  updateQrWarning();
   bindNav();
 }
 
@@ -1498,7 +1590,11 @@ app.toast = toast;
 app.showCameraError = showCameraDialog;
 app.sendControl = (object) => (app.session ? app.session.sendControl(object) : false);
 app.settings.on('change', (info) => {
-  if (info.key === 'theme') applyTheme(info.value);
+  if (info.key === 'theme') {
+    applyTheme(info.value);
+    // A theme change can alter label metrics; keep the highlight aligned.
+    moveNavIndicators();
+  }
 });
 
 // Language switching rebuilds the static text; dynamic strings are set with
