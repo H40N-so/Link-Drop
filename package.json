@@ -1,0 +1,18 @@
+{
+  "name": "linkdrop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Peer-to-peer phone to laptop camera streaming and file transfer in the browser. Static files only, no build step.",
+  "license": "MIT",
+  "scripts": {
+    "start": "npx --yes serve -l 8080 .",
+    "preview": "npx --yes serve -l 8080 ."
+  },
+  "keywords": [
+    "webrtc",
+    "peer-to-peer",
+    "camera",
+    "file-transfer",
+    "static-site"
+  ]
+}

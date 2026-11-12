@@ -1,0 +1,163 @@
+/* LinkDrop theme: fonts, colour tokens and the light/dark palettes.
+ *
+ * The palette follows the system preference by default. Setting
+ * data-theme="light" or data-theme="dark" on <html> overrides it, which is what
+ * the Settings screen does.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Inter (self-hosted, so LinkDrop never calls out to a CDN)
+ * ------------------------------------------------------------------ */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../vendor/fonts/inter-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../vendor/fonts/inter-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../vendor/fonts/inter-latin-600-normal.woff2') format('woff2');
+}
+
+/* ------------------------------------------------------------------ *
+ * Design tokens — light theme (the default)
+ * ------------------------------------------------------------------ */
+
+:root {
+  color-scheme: light;
+
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica,
+    Arial, 'Noto Sans', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Surfaces and text */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --surface-3: #e9edf2;
+  --border: #e3e7ed;
+  --border-strong: #d3d9e2;
+  --text: #1b2130;
+  --text-muted: #667085;
+  --text-faint: #98a2b3;
+
+  /* Accent and status */
+  --accent: #3b82f6;
+  --accent-strong: #2563eb;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(59, 130, 246, 0.12);
+  --accent-ring: rgba(59, 130, 246, 0.35);
+
+  --ok: #16a34a;
+  --ok-soft: rgba(22, 163, 74, 0.14);
+  --wait: #d97706;
+  --wait-soft: rgba(217, 119, 6, 0.16);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.12);
+
+  /* Shape and motion */
+  --radius-lg: 16px;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.05);
+  --shadow-lg: 0 10px 30px rgba(16, 24, 40, 0.12);
+
+  --focus-ring: 0 0 0 3px var(--accent-ring);
+  --transition: 170ms ease;
+
+  --sidebar-width: 232px;
+  --tabbar-height: 60px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Design tokens — dark theme
+ * ------------------------------------------------------------------ */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --bg: #0e1015;
+    --surface: #171a21;
+    --surface-2: #1d2129;
+    --surface-3: #242933;
+    --border: #2a2f3a;
+    --border-strong: #3a4150;
+    --text: #e7e9ee;
+    --text-muted: #9aa3b4;
+    --text-faint: #6d7686;
+
+    --accent: #3b82f6;
+    --accent-strong: #60a5fa;
+    --accent-contrast: #08101f;
+    --accent-soft: rgba(96, 165, 250, 0.16);
+    --accent-ring: rgba(96, 165, 250, 0.4);
+
+    --ok: #34d399;
+    --ok-soft: rgba(52, 211, 153, 0.16);
+    --wait: #fbbf24;
+    --wait-soft: rgba(251, 191, 36, 0.16);
+    --danger: #f87171;
+    --danger-soft: rgba(248, 113, 113, 0.16);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 18px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 12px 34px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Explicit theme override (the Settings screen sets data-theme). */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0e1015;
+  --surface: #171a21;
+  --surface-2: #1d2129;
+  --surface-3: #242933;
+  --border: #2a2f3a;
+  --border-strong: #3a4150;
+  --text: #e7e9ee;
+  --text-muted: #9aa3b4;
+  --text-faint: #6d7686;
+
+  --accent: #3b82f6;
+  --accent-strong: #60a5fa;
+  --accent-contrast: #08101f;
+  --accent-soft: rgba(96, 165, 250, 0.16);
+  --accent-ring: rgba(96, 165, 250, 0.4);
+
+  --ok: #34d399;
+  --ok-soft: rgba(52, 211, 153, 0.16);
+  --wait: #fbbf24;
+  --wait-soft: rgba(251, 191, 36, 0.16);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.16);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 34px rgba(0, 0, 0, 0.5);
+}
+
+/* Respect users who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition: 0ms;
+  }
+}

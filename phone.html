@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="LinkDrop: stream your phone camera to a laptop and send files both ways, directly over WebRTC."
+    />
+    <title>LinkDrop · Phone</title>
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body data-role="phone">
+    <div class="phone-shell">
+      <header class="phone-header">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.07 0l1.42-1.42a5 5 0 0 0-7.07-7.07L10 5.93" />
+            <path d="M14 11a5 5 0 0 0-7.07 0l-1.42 1.42a5 5 0 0 0 7.07 7.07L14 18.07" />
+          </svg>
+        </span>
+        <span class="brand-name">LinkDrop</span>
+        <span class="topbar-spacer"></span>
+        <span id="device-name" class="device-name" hidden></span>
+        <span id="status-pill" class="status-pill" data-state="disconnected">
+          <span data-status-text data-i18n="status.disconnected"></span>
+        </span>
+        <button type="button" id="disconnect-btn" class="btn btn-ghost btn-small" hidden data-i18n="phone.disconnect"></button>
+      </header>
+
+      <main class="phone-content">
+        <div id="notice" class="notice" role="status" hidden>
+          <span class="notice-text" data-notice-text></span>
+          <button type="button" class="btn btn-ghost btn-small" data-notice-close data-i18n="common.close"></button>
+        </div>
+
+        <!-- Connect -------------------------------------------------- -->
+        <section class="screen" data-screen="connect" aria-labelledby="phone-connect-title">
+          <div class="page-head">
+            <h1 class="page-title" id="phone-connect-title" data-i18n="phone.connectTitle"></h1>
+            <p class="page-subtitle" data-i18n="phone.connectSubtitle"></p>
+          </div>
+
+          <div class="phone-card">
+            <label class="muted small" for="code-input" data-i18n="phone.codeLabel"></label>
+            <input
+              id="code-input"
+              class="code-input"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
+              maxlength="9"
+              placeholder="0000 0000"
+              aria-label="Pairing code"
+              data-i18n-attr="aria-label:phone.codeLabel"
+            />
+            <div class="phone-actions" style="margin-top: 14px">
+              <button type="button" class="btn btn-primary" id="connect-btn" data-i18n="phone.connect"></button>
+            </div>
+            <div id="phone-connect-status" class="inline-status" hidden></div>
+          </div>
+        </section>
+
+        <!-- Camera --------------------------------------------------- -->
+        <section class="screen" data-screen="camera" aria-labelledby="phone-camera-title">
+          <div class="page-head">
+            <h1 class="page-title" id="phone-camera-title" data-i18n="phone.camTitle"></h1>
+          </div>
+
+          <video class="phone-preview" data-phone-preview autoplay playsinline muted></video>
+
+          <div class="phone-card" style="margin-top: 12px">
+            <div class="phone-status">
+              <span class="phone-status-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 8h2.4l1.5-2h8.2l1.5 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
+                  <circle cx="12" cy="13" r="3.2" />
+                </svg>
+              </span>
+              <div>
+                <div id="phone-status" data-phone-status data-i18n="phone.notStreaming"></div>
+                <small class="muted" data-phone-detail></small>
+              </div>
+            </div>
+
+            <div class="phone-actions">
+              <button type="button" class="btn btn-primary" data-phone-start data-i18n="phone.start"></button>
+              <button type="button" class="btn btn-danger" data-phone-stop data-i18n="phone.stop" hidden></button>
+            </div>
+
+            <p class="muted small" style="margin-top: 12px" data-i18n="phone.keepAwake"></p>
+          </div>
+        </section>
+
+        <!-- Files ---------------------------------------------------- -->
+        <section class="screen" data-screen="files" aria-labelledby="phone-files-title">
+          <div class="page-head">
+            <h1 class="page-title" id="phone-files-title" data-i18n="files.title"></h1>
+            <p class="page-subtitle" data-i18n="files.subtitle"></p>
+          </div>
+
+          <div class="phone-card">
+            <button type="button" class="btn btn-primary" data-files-send data-i18n="files.send"></button>
+            <input type="file" data-files-input multiple hidden />
+            <p class="muted small" style="margin-top: 10px" data-i18n="files.note"></p>
+          </div>
+
+          <div class="files-head">
+            <h2 class="card-title" style="padding: 0" data-i18n="files.session"></h2>
+            <button type="button" class="btn btn-ghost btn-small" data-files-clear data-i18n="files.clear"></button>
+          </div>
+
+          <div class="empty-state" data-files-empty>
+            <p data-i18n="files.emptyPhone"></p>
+          </div>
+          <ul class="transfer-list" data-transfer-list></ul>
+        </section>
+
+        <!-- Settings ------------------------------------------------- -->
+        <section class="screen" data-screen="settings" aria-labelledby="phone-settings-title">
+          <div class="page-head">
+            <h1 class="page-title" id="phone-settings-title" data-i18n="settings.title"></h1>
+            <p class="page-subtitle" data-i18n="settings.subtitle"></p>
+          </div>
+          <div data-settings-host></div>
+        </section>
+      </main>
+
+      <nav class="tabbar" aria-label="Main navigation">
+        <button type="button" class="nav-item" data-nav="camera">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 8h2.4l1.5-2h8.2l1.5 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
+            <circle cx="12" cy="13" r="3.2" />
+          </svg>
+          <span data-i18n="nav.camera"></span>
+        </button>
+        <button type="button" class="nav-item" data-nav="files">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 7a1 1 0 0 1 1-1h4.3l1.8 2H19a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" />
+          </svg>
+          <span data-i18n="nav.files"></span>
+        </button>
+        <button type="button" class="nav-item" data-nav="settings">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2.6v2.6M12 18.8v2.6M2.6 12h2.6M18.8 12h2.6M5.4 5.4l1.9 1.9M16.7 16.7l1.9 1.9M18.6 5.4l-1.9 1.9M7.3 16.7l-1.9 1.9" />
+          </svg>
+          <span data-i18n="nav.settings"></span>
+        </button>
+      </nav>
+    </div>
+
+    <div id="verify-modal" class="modal" hidden></div>
+    <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+
+    <script src="vendor/peerjs.min.js"></script>
+    <script src="vendor/mqtt.min.js"></script>
+    <script src="vendor/qrcode.js"></script>
+    <script type="module" src="js/ui.js"></script>
+  </body>
+</html>
